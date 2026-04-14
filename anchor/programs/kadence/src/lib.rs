@@ -7,7 +7,7 @@ use anchor_spl::{
 #[cfg(test)]
 mod tests;
 
-declare_id!("AmiknhZoficTbeV33KT2LQheAYKQuJp7pBdquRR4ZkKA");
+declare_id!("DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK");
 
 /// KAD token has 6 decimal places (like USDC).
 const KAD_DECIMALS: u8 = 6;

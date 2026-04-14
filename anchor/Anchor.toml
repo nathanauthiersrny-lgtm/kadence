@@ -4,8 +4,11 @@
 resolution = true
 skip-lint = false
 
+[programs.localnet]
+kadence = "DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK"
+
 [programs.devnet]
-kadence = "AmiknhZoficTbeV33KT2LQheAYKQuJp7pBdquRR4ZkKA"
+kadence = "DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK"
 
 [registry]
 url = "https://api.apr.dev"

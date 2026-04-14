@@ -3,15 +3,21 @@ import {
   SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
 } from "@solana/kit";
 import {
-  getVaultErrorMessage,
-  VAULT_ERROR__VAULT_ALREADY_EXISTS,
-  VAULT_ERROR__INVALID_AMOUNT,
-  type VaultError,
-} from "../generated/vault";
+  getKadenceErrorMessage,
+  KADENCE_ERROR__INVALID_DISTANCE,
+  KADENCE_ERROR__DISTANCE_TOO_LARGE,
+  KADENCE_ERROR__INVALID_DURATION,
+  KADENCE_ERROR__PACE_TOO_FAST,
+  KADENCE_ERROR__MATH_OVERFLOW,
+  type KadenceError,
+} from "../generated/kadence";
 
-const VAULT_ERROR_CODES: Record<number, VaultError> = {
-  [VAULT_ERROR__VAULT_ALREADY_EXISTS]: VAULT_ERROR__VAULT_ALREADY_EXISTS,
-  [VAULT_ERROR__INVALID_AMOUNT]: VAULT_ERROR__INVALID_AMOUNT,
+const KADENCE_ERROR_CODES: Record<number, KadenceError> = {
+  [KADENCE_ERROR__INVALID_DISTANCE]: KADENCE_ERROR__INVALID_DISTANCE,
+  [KADENCE_ERROR__DISTANCE_TOO_LARGE]: KADENCE_ERROR__DISTANCE_TOO_LARGE,
+  [KADENCE_ERROR__INVALID_DURATION]: KADENCE_ERROR__INVALID_DURATION,
+  [KADENCE_ERROR__PACE_TOO_FAST]: KADENCE_ERROR__PACE_TOO_FAST,
+  [KADENCE_ERROR__MATH_OVERFLOW]: KADENCE_ERROR__MATH_OVERFLOW,
 };
 
 export function parseTransactionError(err: unknown): string {
@@ -20,19 +26,18 @@ export function parseTransactionError(err: unknown): string {
     return "Transaction was rejected by the wallet.";
   }
 
-  // Anchor custom program errors — use the Codama-generated error messages
+  // Anchor custom program errors — map to Codama-generated Kadence messages
   if (
     isSolanaError(err, SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM) &&
     typeof err.context?.code === "number"
   ) {
-    const vaultError = VAULT_ERROR_CODES[err.context.code];
-    if (vaultError !== undefined) {
-      return getVaultErrorMessage(vaultError);
+    const kadenceError = KADENCE_ERROR_CODES[err.context.code];
+    if (kadenceError !== undefined) {
+      return getKadenceErrorMessage(kadenceError);
     }
   }
 
-  // For all other errors, kit's SolanaError already has readable messages.
-  // Walk the cause chain to find the deepest message.
+  // For all other errors, walk the cause chain to find the deepest message.
   const message = getDeepestMessage(err);
   return message.length > 200 ? `${message.slice(0, 200)}...` : message;
 }

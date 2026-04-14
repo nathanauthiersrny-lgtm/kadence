@@ -8,7 +8,7 @@ import { useBalance } from "./lib/hooks/use-balance";
 import { lamportsToSolString } from "./lib/lamports";
 import { useSolanaClient } from "./lib/solana-client-context";
 import { ellipsify } from "./lib/explorer";
-import { VaultCard } from "./components/vault-card";
+import { RunCard } from "./components/run-card";
 import { GridBackground } from "./components/grid-background";
 import { ThemeToggle } from "./components/theme-toggle";
 import { ClusterSelect } from "./components/cluster-select";
@@ -83,7 +83,7 @@ export default function Home() {
         {/* Header */}
         <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <span className="text-sm font-semibold tracking-tight">
-            Solana Starter Kit
+            Kadence
           </span>
           <div className="flex items-center gap-3">
             <ThemeToggle />
@@ -98,20 +98,19 @@ export default function Home() {
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
                 <h1 className="font-black tracking-tight text-foreground">
-                  <span className="block text-6xl md:text-7xl">Anchor</span>
-                  <span className="block text-7xl md:text-8xl">Vault</span>
+                  <span className="block text-6xl md:text-7xl">Move</span>
+                  <span className="block text-7xl md:text-8xl">to Earn</span>
                 </h1>
               </div>
 
               <div className="flex max-w-2xl flex-col gap-3">
                 <p className="text-base leading-relaxed text-foreground/50">
-                  This program creates a personal vault for each user using a
-                  Program Derived Address (PDA). Connect your wallet, deposit
-                  SOL into your vault, and withdraw it anytime. Only you can
-                  access your funds.
+                  Run. Earn KAD. Kadence is a move-to-earn app on Solana — every
+                  kilometre you run mints 1 KAD token directly to your wallet
+                  via a PDA-signed SPL mint.
                 </p>
                 <p className="text-sm leading-relaxed text-foreground/40">
-                  The vault is an{" "}
+                  Built with{" "}
                   <a
                     href="https://www.anchor-lang.com/docs/introduction"
                     target="_blank"
@@ -120,38 +119,17 @@ export default function Home() {
                   >
                     Anchor
                   </a>{" "}
-                  program you can deploy to localnet or devnet and modify
-                  yourself. Check the README for setup instructions.
+                  +{" "}
+                  <a
+                    href="https://github.com/codama-idl/codama"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    Codama
+                  </a>{" "}
+                  for the Frontier Hackathon 2026.
                 </p>
-                <div className="flex flex-wrap gap-4">
-                  <a
-                    href="https://solana.com/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-medium text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground"
-                  >
-                    Solana docs
-                    <span aria-hidden="true">&rarr;</span>
-                  </a>
-                  <a
-                    href="https://www.anchor-lang.com/docs/introduction"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-medium text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground"
-                  >
-                    Anchor docs
-                    <span aria-hidden="true">&rarr;</span>
-                  </a>
-                  <a
-                    href="https://faucet.solana.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-medium text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground"
-                  >
-                    Faucet
-                    <span aria-hidden="true">&rarr;</span>
-                  </a>
-                </div>
               </div>
             </div>
           </section>
@@ -261,8 +239,8 @@ export default function Home() {
               </section>
             )}
 
-            {/* Vault Program Section */}
-            <VaultCard />
+            {/* Kadence Run Section */}
+            <RunCard />
           </div>
         </main>
       </div>
