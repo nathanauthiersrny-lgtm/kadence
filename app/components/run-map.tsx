@@ -37,9 +37,9 @@ export function RunMap({ route, className }: Props) {
         scrollWheelZoom: false,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
-        attribution: "© OpenStreetMap contributors",
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
       }).addTo(map);
 
       // Default view — will be overridden once GPS positions arrive.
@@ -72,7 +72,7 @@ export function RunMap({ route, className }: Props) {
         polylineRef.current.setLatLngs(latLngs);
       } else {
         polylineRef.current = L.polyline(latLngs, {
-          color: "#16a34a",
+          color: "#E0F479",
           weight: 4,
           opacity: 0.9,
         }).addTo(map);
@@ -83,7 +83,7 @@ export function RunMap({ route, className }: Props) {
         const first = route[0];
         startDotRef.current = L.circleMarker([first.lat, first.lon], {
           radius: 6,
-          color: "#15803d",
+          color: "#3FB977",
           fillColor: "#ffffff",
           fillOpacity: 1,
           weight: 2,
@@ -96,8 +96,8 @@ export function RunMap({ route, className }: Props) {
       } else {
         dotRef.current = L.circleMarker([last.lat, last.lon], {
           radius: 9,
-          color: "#15803d",
-          fillColor: "#16a34a",
+          color: "#0D0D0D",
+          fillColor: "#E0F479",
           fillOpacity: 1,
           weight: 2,
         }).addTo(map);
