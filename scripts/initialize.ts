@@ -14,8 +14,8 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-const RPC_URL = "http://localhost:8899";
-const WS_URL = "ws://localhost:8900";
+const RPC_URL = process.env.ANCHOR_PROVIDER_URL ?? "http://localhost:8899";
+const WS_URL = RPC_URL.replace(/^http/, "ws").replace("8899", "8900");
 
 async function main() {
   // Load the default Solana keypair

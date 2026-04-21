@@ -35,14 +35,13 @@ export type BadgesState = {
 };
 
 export function useBadges(): BadgesState {
-  const [earned, setEarned] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try { setEarned(new Set(JSON.parse(raw) as string[])); } catch { /* ignore */ }
-    }
-  }, []);
+  const [earned, setEarned] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
 
   const checkAndUnlock = useCallback(
     ({

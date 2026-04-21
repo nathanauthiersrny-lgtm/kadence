@@ -45,7 +45,7 @@ type Props = {
 };
 
 export function ActiveRunScreen({ onEnd, onCancel }: Props) {
-  const { isRunning, distanceMeters, durationSeconds, route, geoError, startRun, stopRun } =
+  const { isRunning, distanceMeters, durationSeconds, speedKmh, route, geoError, startRun, stopRun } =
     useRunTracker();
   const { multiplier } = useStreak();
 
@@ -59,20 +59,11 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
   // Track sprint for badge
   const reachedSprintRef = useRef(false);
 
-  // Instantaneous speed: derived from recent distance delta
-  const prevDistRef = useRef(0);
-  const [speedKmh, setSpeedKmh] = useState(0);
-
-  // Update speed + combo every second
+  // Update combo every second based on GPS speed from hook
   useEffect(() => {
     if (!isRunning) return;
     const t = setInterval(() => {
-      const delta = distanceMeters - prevDistRef.current; // metres in last second
-      prevDistRef.current = distanceMeters;
-      const kmh = delta * 3.6; // m/s → km/h
-      setSpeedKmh(kmh);
-
-      const zone = speedZone(kmh);
+      const zone = speedZone(speedKmh);
       if (zone.index >= 4) reachedSprintRef.current = true;
 
       if (zone.index >= 2) {
@@ -83,7 +74,7 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
       setComboSeconds(comboRef.current);
     }, 1000);
     return () => clearInterval(t);
-  }, [isRunning, distanceMeters]);
+  }, [isRunning, speedKmh]);
 
   // Auto-start GPS when component mounts
   useEffect(() => {
@@ -116,10 +107,7 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
   const kadEarned = distKm * multiplier;
   const xpEarned = Math.round(distKm * 10 * multiplier);
   const comboLevel = comboSeconds >= 60 ? Math.min(Math.floor(comboSeconds / 60), 5) : 0;
-
-  // Use average speed if instantaneous is 0 (e.g. GPS hasn't moved yet)
-  const avgSpeedKmh = durationSeconds > 0 ? (distanceMeters / durationSeconds) * 3.6 : 0;
-  const displayZone = speedZone(speedKmh > 0 ? speedKmh : avgSpeedKmh);
+  const displayZone = zone;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "16px 20px 24px", color: "#fff", fontFamily: "var(--font-sans)", minHeight: "100%" }}>
@@ -185,7 +173,7 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
           <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.5)" }}>Speed zone</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#E0F479", fontVariantNumeric: "tabular-nums" }}>
-            {(speedKmh > 0 ? speedKmh : avgSpeedKmh).toFixed(1)} km/h · {displayZone.label}
+            {speedKmh.toFixed(1)} km/h · {displayZone.label}
           </span>
         </div>
         <div style={{ display: "flex", gap: 4, height: 24 }}>

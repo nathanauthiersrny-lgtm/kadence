@@ -15,6 +15,7 @@ export type RunTrackerReturn = {
   isRunning: boolean;
   distanceMeters: number;
   durationSeconds: number;
+  speedKmh: number;
   route: LatLon[];
   geoError: string | null;
   startRun: () => void;
@@ -36,10 +37,13 @@ function haversine(a: LatLon, b: LatLon): number {
   return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
+const GPS_WARMUP_MS = 10_000; // ignore positions for the first 10s
+
 export function useRunTracker(): RunTrackerReturn {
   const [isRunning, setIsRunning] = useState(false);
   const [distanceMeters, setDistanceMeters] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
+  const [speedKmh, setSpeedKmh] = useState(0);
   const [route, setRoute] = useState<LatLon[]>([]);
   const [geoError, setGeoError] = useState<string | null>(null);
 
@@ -80,16 +84,28 @@ export function useRunTracker(): RunTrackerReturn {
     // GPS watch — high accuracy, no caching
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
+        // GPS warmup: discard positions during the first GPS_WARMUP_MS
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed < GPS_WARMUP_MS) return;
+
+        // Discard low-accuracy fixes (worse than 30 m)
+        if (pos.coords.accuracy > 30) return;
+
         const point: LatLon = {
           lat: pos.coords.latitude,
           lon: pos.coords.longitude,
         };
 
+        // Use GPS-native speed when available (m/s → km/h)
+        if (pos.coords.speed != null && pos.coords.speed >= 0) {
+          setSpeedKmh(pos.coords.speed * 3.6);
+        }
+
         if (lastPointRef.current !== null) {
           const segment = haversine(lastPointRef.current, point);
-          // Filter GPS noise: ignore sub-metre jitter and implausible jumps
-          // (>50 m between updates is ~180 km/h — impossible while running).
-          if (segment >= 1 && segment <= 50) {
+          // Filter GPS noise: ignore sub-0.5m jitter and implausible jumps
+          // (>100 m between updates would be >360 km/h)
+          if (segment >= 0.5 && segment <= 100) {
             distanceRef.current += segment;
             setDistanceMeters(distanceRef.current);
           }
@@ -132,6 +148,7 @@ export function useRunTracker(): RunTrackerReturn {
     isRunning,
     distanceMeters,
     durationSeconds,
+    speedKmh,
     route,
     geoError,
     startRun,
