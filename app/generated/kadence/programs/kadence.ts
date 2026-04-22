@@ -17,8 +17,10 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 import {
+  parseClaimChallengeBonusInstruction,
   parseCompleteRunInstruction,
   parseInitializeInstruction,
+  type ParsedClaimChallengeBonusInstruction,
   type ParsedCompleteRunInstruction,
   type ParsedInitializeInstruction,
 } from "../instructions";
@@ -27,6 +29,7 @@ export const KADENCE_PROGRAM_ADDRESS =
   "DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK" as Address<"DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK">;
 
 export enum KadenceInstruction {
+  ClaimChallengeBonus,
   CompleteRun,
   Initialize,
 }
@@ -35,6 +38,17 @@ export function identifyKadenceInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): KadenceInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([35, 58, 136, 228, 240, 36, 203, 211]),
+      ),
+      0,
+    )
+  ) {
+    return KadenceInstruction.ClaimChallengeBonus;
+  }
   if (
     containsBytes(
       data,
@@ -66,6 +80,9 @@ export type ParsedKadenceInstruction<
   TProgram extends string = "DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK",
 > =
   | ({
+      instructionType: KadenceInstruction.ClaimChallengeBonus;
+    } & ParsedClaimChallengeBonusInstruction<TProgram>)
+  | ({
       instructionType: KadenceInstruction.CompleteRun;
     } & ParsedCompleteRunInstruction<TProgram>)
   | ({
@@ -77,6 +94,13 @@ export function parseKadenceInstruction<TProgram extends string>(
 ): ParsedKadenceInstruction<TProgram> {
   const instructionType = identifyKadenceInstruction(instruction);
   switch (instructionType) {
+    case KadenceInstruction.ClaimChallengeBonus: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: KadenceInstruction.ClaimChallengeBonus,
+        ...parseClaimChallengeBonusInstruction(instruction),
+      };
+    }
     case KadenceInstruction.CompleteRun: {
       assertIsInstructionWithAccounts(instruction);
       return {

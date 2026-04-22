@@ -12,9 +12,11 @@ import { useCluster } from "./components/cluster-context";
 import { HomeScreen } from "./components/home-screen";
 import { ActiveRunScreen } from "./components/active-run-screen";
 import { PostRunScreen } from "./components/post-run-screen";
+import { CommunityScreen } from "./components/community-screen";
+import { useCommunity } from "./lib/hooks/use-community";
 import type { RunResult } from "./lib/hooks/use-run-tracker";
 
-type View = "home" | "running" | "post-run";
+type View = "home" | "running" | "post-run" | "community";
 
 type RunSnapshot = {
   distanceMeters: number;
@@ -34,6 +36,7 @@ export default function Page() {
   const { getExplorerUrl } = useCluster();
   const { multiplier } = useStreak();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
+  const { addRunContribution } = useCommunity();
 
   const handleStart = useCallback(() => {
     setClaimed(false);
@@ -50,6 +53,10 @@ export default function Page() {
 
   const handleCancel = useCallback(() => {
     setView("home");
+  }, []);
+
+  const handleCommunity = useCallback(() => {
+    setView("community");
   }, []);
 
   const handleClaim = useCallback(async () => {
@@ -69,6 +76,10 @@ export default function Page() {
       const sig = await send({ instructions: [ix] });
       void mutateBalance();
       setClaimed(true);
+      // Record contribution to community challenge
+      const distKm = Number(runSnapshot.result.distance) / 1000;
+      const paceSecPerKm = distKm > 0 ? runSnapshot.durationSeconds / distKm : 0;
+      addRunContribution(distKm, paceSecPerKm);
       toast.success("KAD minted!", {
         description: sig ? (
           <a
@@ -115,10 +126,14 @@ export default function Page() {
           overflowX: "hidden",
         }}
       >
-        {view === "home" && <HomeScreen onStart={handleStart} />}
+        {view === "home" && <HomeScreen onStart={handleStart} onCommunity={handleCommunity} />}
 
         {view === "running" && (
           <ActiveRunScreen onEnd={handleEnd} onCancel={handleCancel} />
+        )}
+
+        {view === "community" && (
+          <CommunityScreen onBack={() => setView("home")} />
         )}
 
         {view === "post-run" && runSnapshot && (

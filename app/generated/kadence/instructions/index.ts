@@ -6,5 +6,6 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./claimChallengeBonus";
 export * from "./completeRun";
 export * from "./initialize";

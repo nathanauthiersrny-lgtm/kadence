@@ -24,6 +24,9 @@ const MAX_DISTANCE_METERS: u64 = 100_000;
 const MIN_SECONDS_PER_KM: u64 = 60;
 const METERS_PER_KM: u64 = 1_000;
 
+/// Max community challenge bonus: 50 KAD per claim.
+const MAX_CHALLENGE_BONUS: u64 = 50_000_000;
+
 #[program]
 pub mod kadence {
     use super::*;
@@ -87,6 +90,37 @@ pub mod kadence {
             distance,
             duration,
             reward,
+        });
+
+        Ok(())
+    }
+
+    /// Mint a community challenge bonus to the runner.
+    /// The frontend validates challenge completion; this instruction trusts the
+    /// client (acceptable for a demo — production would store on-chain state).
+    pub fn claim_challenge_bonus(ctx: Context<ClaimChallengeBonus>, bonus_amount: u64) -> Result<()> {
+        require!(bonus_amount > 0, KadenceError::InvalidBonusAmount);
+        require!(bonus_amount <= MAX_CHALLENGE_BONUS, KadenceError::ChallengeBonusExceedsMax);
+
+        let authority_bump = ctx.bumps.mint_authority;
+        let signer_seeds: &[&[&[u8]]] = &[&[b"mint-authority", &[authority_bump]]];
+
+        mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.runner_token_account.to_account_info(),
+                    authority: ctx.accounts.mint_authority.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            bonus_amount,
+        )?;
+
+        emit!(ChallengeBonusClaimed {
+            runner: ctx.accounts.runner.key(),
+            bonus_amount,
         });
 
         Ok(())
@@ -163,6 +197,38 @@ pub struct CompleteRun<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct ClaimChallengeBonus<'info> {
+    #[account(mut)]
+    pub runner: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"kad-mint"],
+        bump,
+    )]
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        init_if_needed,
+        payer = runner,
+        associated_token::mint = mint,
+        associated_token::authority = runner,
+    )]
+    pub runner_token_account: Account<'info, TokenAccount>,
+
+    /// CHECK: PDA used only as a mint authority signer — no data stored.
+    #[account(
+        seeds = [b"mint-authority"],
+        bump,
+    )]
+    pub mint_authority: UncheckedAccount<'info>,
+
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
 // ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
@@ -176,6 +242,13 @@ pub struct RunCompleted {
     pub duration: u64,
     /// KAD base units minted (6 decimals).
     pub reward: u64,
+}
+
+#[event]
+pub struct ChallengeBonusClaimed {
+    pub runner: Pubkey,
+    /// KAD base units minted as challenge bonus (6 decimals).
+    pub bonus_amount: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -194,4 +267,8 @@ pub enum KadenceError {
     PaceTooFast,
     #[msg("Math overflow")]
     MathOverflow,
+    #[msg("Bonus amount must be greater than 0")]
+    InvalidBonusAmount,
+    #[msg("Bonus amount exceeds maximum allowed (50 KAD)")]
+    ChallengeBonusExceedsMax,
 }

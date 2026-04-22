@@ -6,11 +6,12 @@ import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
 import { useBadges } from "../lib/hooks/use-badges";
+import { useCommunity } from "../lib/hooks/use-community";
 import { KCard, KButton, KPill, KAvatar, KIcon } from "./ui/primitives";
 import { WalletButton } from "./wallet-button";
 import { ellipsify } from "../lib/explorer";
 
-type Props = { onStart: () => void };
+type Props = { onStart: () => void; onCommunity: () => void };
 
 // ─── Streak Ring ─────────────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ function StreakRing({ streak, multiplier }: { streak: number; multiplier: number
 
 // ─── Home Screen ─────────────────────────────────────────────────────────────
 
-export function HomeScreen({ onStart }: Props) {
+export function HomeScreen({ onStart, onCommunity }: Props) {
   const { wallet, status } = useWallet();
   const address = wallet?.account.address;
   const { data: kadBalance } = useKadBalance(address);
@@ -92,6 +93,7 @@ export function HomeScreen({ onStart }: Props) {
   const { streak, multiplier } = useStreak();
   const { quest, progressKm, completed, timeUntilReset } = useQuests();
   const { badges } = useBadges();
+  const { joinedCommunity, weekProgress, collectiveKm, challengeComplete } = useCommunity();
 
   const kadDisplay = kadBalance?.uiAmount ?? 0;
   const displayName = address ? ellipsify(address, 4) : "—";
@@ -216,6 +218,73 @@ export function HomeScreen({ onStart }: Props) {
             </button>
           )}
         </KCard>
+      </div>
+
+      {/* Community widget */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(255,255,255,0.55)", margin: 0, fontWeight: 600 }}>
+            Community
+          </h3>
+        </div>
+        <button
+          onClick={onCommunity}
+          style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+        >
+          <KCard padding={0} style={{ overflow: "hidden" }}>
+            {joinedCommunity ? (
+              <div style={{ padding: "14px 16px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <KIcon
+                      name={joinedCommunity.type === "road" ? "route" : "nav"}
+                      size={15}
+                      color="rgba(255,255,255,0.6)"
+                    />
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>{joinedCommunity.name}</span>
+                  </div>
+                  {challengeComplete && !weekProgress.claimed ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#E0F479", background: "rgba(224,244,121,0.12)", border: "1px solid rgba(224,244,121,0.3)", borderRadius: 50, padding: "2px 8px" }}>
+                      Claim ready!
+                    </span>
+                  ) : (
+                    <KIcon name="chevron" size={14} color="rgba(255,255,255,0.3)" />
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
+                  {joinedCommunity.challenge.type === "collective_km"
+                    ? `${collectiveKm.toFixed(1)} / ${joinedCommunity.challenge.target} km · Group challenge`
+                    : `${weekProgress.myRunCount} / ${joinedCommunity.challenge.target} runs · Individual challenge`}
+                </div>
+                <div style={{ height: 5, borderRadius: 50, background: "rgba(224,244,121,0.1)", overflow: "hidden" }}>
+                  <div style={{
+                    width: `${Math.min(
+                      joinedCommunity.challenge.type === "collective_km"
+                        ? (collectiveKm / joinedCommunity.challenge.target) * 100
+                        : (weekProgress.myRunCount / joinedCommunity.challenge.target) * 100,
+                      100
+                    )}%`,
+                    height: "100%",
+                    background: challengeComplete ? "linear-gradient(90deg, #3FB977, #E0F479)" : "#E0F479",
+                    borderRadius: 50,
+                    transition: "width 0.6s ease",
+                  }} />
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <KIcon name="users" size={16} color="rgba(255,255,255,0.4)" />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>Join a community</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Run together, earn more KAD</div>
+                  </div>
+                </div>
+                <KIcon name="chevron" size={14} color="rgba(255,255,255,0.3)" />
+              </div>
+            )}
+          </KCard>
+        </button>
       </div>
 
       {/* Badges */}

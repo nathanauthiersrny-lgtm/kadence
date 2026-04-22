@@ -24,9 +24,15 @@ export const KADENCE_ERROR__INVALID_DURATION = 0x1772; // 6002
 export const KADENCE_ERROR__PACE_TOO_FAST = 0x1773; // 6003
 /** MathOverflow: Math overflow */
 export const KADENCE_ERROR__MATH_OVERFLOW = 0x1774; // 6004
+/** InvalidBonusAmount: Bonus amount must be greater than 0 */
+export const KADENCE_ERROR__INVALID_BONUS_AMOUNT = 0x1775; // 6005
+/** ChallengeBonusExceedsMax: Bonus amount exceeds maximum allowed (50 KAD) */
+export const KADENCE_ERROR__CHALLENGE_BONUS_EXCEEDS_MAX = 0x1776; // 6006
 
 export type KadenceError =
+  | typeof KADENCE_ERROR__CHALLENGE_BONUS_EXCEEDS_MAX
   | typeof KADENCE_ERROR__DISTANCE_TOO_LARGE
+  | typeof KADENCE_ERROR__INVALID_BONUS_AMOUNT
   | typeof KADENCE_ERROR__INVALID_DISTANCE
   | typeof KADENCE_ERROR__INVALID_DURATION
   | typeof KADENCE_ERROR__MATH_OVERFLOW
@@ -35,7 +41,9 @@ export type KadenceError =
 let kadenceErrorMessages: Record<KadenceError, string> | undefined;
 if (process.env.NODE_ENV !== "production") {
   kadenceErrorMessages = {
+    [KADENCE_ERROR__CHALLENGE_BONUS_EXCEEDS_MAX]: `Bonus amount exceeds maximum allowed (50 KAD)`,
     [KADENCE_ERROR__DISTANCE_TOO_LARGE]: `Distance exceeds maximum allowed (100,000 m / 100 km)`,
+    [KADENCE_ERROR__INVALID_BONUS_AMOUNT]: `Bonus amount must be greater than 0`,
     [KADENCE_ERROR__INVALID_DISTANCE]: `Distance must be greater than 0`,
     [KADENCE_ERROR__INVALID_DURATION]: `Duration must be greater than 0`,
     [KADENCE_ERROR__MATH_OVERFLOW]: `Math overflow`,
