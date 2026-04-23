@@ -13,16 +13,19 @@ import { HomeScreen } from "./components/home-screen";
 import { ActiveRunScreen } from "./components/active-run-screen";
 import { PostRunScreen } from "./components/post-run-screen";
 import { CommunityScreen } from "./components/community-screen";
+import { FlashRunScreen } from "./components/flash-run-screen";
 import { useCommunity } from "./lib/hooks/use-community";
+import { useFlashRun, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
 import type { RunResult } from "./lib/hooks/use-run-tracker";
 
-type View = "home" | "running" | "post-run" | "community";
+type View = "home" | "running" | "post-run" | "community" | "flash-runs";
 
 type RunSnapshot = {
   distanceMeters: number;
   durationSeconds: number;
   reachedSprint: boolean;
   result: RunResult;
+  raceResult?: RaceResult;
 };
 
 export default function Page() {
@@ -30,6 +33,7 @@ export default function Page() {
   const [runSnapshot, setRunSnapshot] = useState<RunSnapshot | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
+  const [activeFlashRun, setActiveFlashRun] = useState<FlashRun | null>(null);
 
   const { wallet, signer } = useWallet();
   const { send } = useSendTransaction();
@@ -37,26 +41,45 @@ export default function Page() {
   const { multiplier } = useStreak();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { addRunContribution } = useCommunity();
+  const { submitResult } = useFlashRun();
 
   const handleStart = useCallback(() => {
     setClaimed(false);
+    setActiveFlashRun(null);
+    setView("running");
+  }, []);
+
+  const handleStartRace = useCallback((event: FlashRun) => {
+    setClaimed(false);
+    setActiveFlashRun(event);
     setView("running");
   }, []);
 
   const handleEnd = useCallback(
     (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean }) => {
-      setRunSnapshot({ ...snapshot, result });
+      if (activeFlashRun) {
+        const raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
+        setRunSnapshot({ ...snapshot, result, raceResult });
+        setActiveFlashRun(null);
+      } else {
+        setRunSnapshot({ ...snapshot, result });
+      }
       setView("post-run");
     },
-    [],
+    [activeFlashRun, submitResult],
   );
 
   const handleCancel = useCallback(() => {
+    setActiveFlashRun(null);
     setView("home");
   }, []);
 
   const handleCommunity = useCallback(() => {
     setView("community");
+  }, []);
+
+  const handleFlashRuns = useCallback(() => {
+    setView("flash-runs");
   }, []);
 
   const handleClaim = useCallback(async () => {
@@ -102,6 +125,7 @@ export default function Page() {
 
   const handleBack = useCallback(() => {
     setRunSnapshot(null);
+    setActiveFlashRun(null);
     setView("home");
   }, []);
 
@@ -126,14 +150,20 @@ export default function Page() {
           overflowX: "hidden",
         }}
       >
-        {view === "home" && <HomeScreen onStart={handleStart} onCommunity={handleCommunity} />}
+        {view === "home" && (
+          <HomeScreen onStart={handleStart} onCommunity={handleCommunity} onFlashRuns={handleFlashRuns} />
+        )}
 
         {view === "running" && (
-          <ActiveRunScreen onEnd={handleEnd} onCancel={handleCancel} />
+          <ActiveRunScreen onEnd={handleEnd} onCancel={handleCancel} flashRun={activeFlashRun ?? undefined} />
         )}
 
         {view === "community" && (
           <CommunityScreen onBack={() => setView("home")} />
+        )}
+
+        {view === "flash-runs" && (
+          <FlashRunScreen onBack={() => setView("home")} onStartRace={handleStartRace} />
         )}
 
         {view === "post-run" && runSnapshot && (
@@ -144,6 +174,7 @@ export default function Page() {
             onBack={handleBack}
             isClaiming={isClaiming}
             claimed={claimed}
+            raceResult={runSnapshot.raceResult}
           />
         )}
       </div>

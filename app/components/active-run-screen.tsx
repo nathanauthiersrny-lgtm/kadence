@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRunTracker } from "../lib/hooks/use-run-tracker";
 import { useStreak } from "../lib/hooks/use-streak";
+import { type FlashRun, getGhostDistanceM } from "../lib/hooks/use-flash-run";
 import { KCard, KButton, KPill, KIcon } from "./ui/primitives";
 import type { RunResult } from "../lib/hooks/use-run-tracker";
 
@@ -42,9 +43,10 @@ const QUEST_GOAL_KM = 5; // mirrors the quest from use-quests
 type Props = {
   onEnd: (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean }) => void;
   onCancel: () => void;
+  flashRun?: FlashRun;
 };
 
-export function ActiveRunScreen({ onEnd, onCancel }: Props) {
+export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
   const { isRunning, distanceMeters, durationSeconds, speedKmh, route, geoError, startRun, stopRun } =
     useRunTracker();
   const { multiplier } = useStreak();
@@ -103,7 +105,11 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
   const paceDisplay = distanceMeters > 10 ? `${paceMm}:${paceSs}` : "—";
 
   const zone = speedZone(speedKmh);
-  const goalProgress = Math.min((distKm / QUEST_GOAL_KM) * 100, 100);
+  const goalDistKm = flashRun ? flashRun.distanceM / 1000 : QUEST_GOAL_KM;
+  const goalProgress = Math.min((distKm / goalDistKm) * 100, 100);
+  const ghostDistM = flashRun ? getGhostDistanceM(flashRun, durationSeconds) : 0;
+  const ghostDistKm = ghostDistM / 1000;
+  const ghostProgress = flashRun ? Math.min((ghostDistKm / goalDistKm) * 100, 100) : 0;
   const kadEarned = distKm * multiplier;
   const xpEarned = Math.round(distKm * 10 * multiplier);
   const comboLevel = comboSeconds >= 60 ? Math.min(Math.floor(comboSeconds / 60), 5) : 0;
@@ -114,7 +120,13 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
 
       {/* Top row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <KPill pulse icon={<KIcon name="nav" size={11} color="#E0F479" />}>GPS</KPill>
+        {flashRun ? (
+          <KPill pulse icon={<KIcon name="trophy" size={11} color="#E0F479" />}>
+            RACE · {(flashRun.distanceM / 1000).toFixed(0)} km
+          </KPill>
+        ) : (
+          <KPill pulse icon={<KIcon name="nav" size={11} color="#E0F479" />}>GPS</KPill>
+        )}
         {comboLevel > 0 ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "rgba(224,244,121,0.12)", borderRadius: 50, border: "1px solid rgba(224,244,121,0.3)" }}>
             <KIcon name="bolt" size={12} color="#E0F479" fill="#E0F479" />
@@ -130,20 +142,48 @@ export function ActiveRunScreen({ onEnd, onCancel }: Props) {
         )}
       </div>
 
-      {/* Goal progress */}
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>
-          <span>Today&apos;s goal · {QUEST_GOAL_KM} km</span>
-          <span style={{ color: "#E0F479" }}>{Math.round(goalProgress)}%</span>
+      {/* Goal / race progress */}
+      {flashRun ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* You */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(224,244,121,0.8)", marginBottom: 5, fontWeight: 700 }}>
+              <span>You</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>{distKm.toFixed(2)} km</span>
+            </div>
+            <div style={{ height: 8, background: "rgba(224,244,121,0.1)", borderRadius: 50, overflow: "hidden" }}>
+              <div style={{ width: `${goalProgress}%`, height: "100%", background: "linear-gradient(90deg, #3FB977, #E0F479)", borderRadius: 50, boxShadow: "0 0 8px rgba(224,244,121,0.5)", transition: "width 1s linear" }} />
+            </div>
+          </div>
+          {/* Ghost (leader) */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 5 }}>
+              <span>Leader</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>{ghostDistKm.toFixed(2)} km</span>
+            </div>
+            <div style={{ height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 50, overflow: "hidden" }}>
+              <div style={{ width: `${ghostProgress}%`, height: "100%", background: "rgba(255,255,255,0.2)", borderRadius: 50, transition: "width 1s linear" }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
+            {goalDistKm.toFixed(1)} km total · {Math.max(0, goalDistKm - distKm).toFixed(2)} km to go
+          </div>
         </div>
-        <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 50, overflow: "hidden" }}>
-          <div style={{ width: `${goalProgress}%`, height: "100%", background: "linear-gradient(90deg, #3FB977, #E0F479)", borderRadius: 50, boxShadow: "0 0 8px rgba(224,244,121,0.5)", transition: "width 1s linear" }} />
+      ) : (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>
+            <span>Today&apos;s goal · {QUEST_GOAL_KM} km</span>
+            <span style={{ color: "#E0F479" }}>{Math.round(goalProgress)}%</span>
+          </div>
+          <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 50, overflow: "hidden" }}>
+            <div style={{ width: `${goalProgress}%`, height: "100%", background: "linear-gradient(90deg, #3FB977, #E0F479)", borderRadius: 50, boxShadow: "0 0 8px rgba(224,244,121,0.5)", transition: "width 1s linear" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+            <span>{distKm.toFixed(2)} km done</span>
+            <span>{Math.max(0, QUEST_GOAL_KM - distKm).toFixed(2)} km to go</span>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
-          <span>{distKm.toFixed(2)} km done</span>
-          <span>{Math.max(0, QUEST_GOAL_KM - distKm).toFixed(2)} km to go</span>
-        </div>
-      </div>
+      )}
 
       {/* Hero timer */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "8px 0" }}>

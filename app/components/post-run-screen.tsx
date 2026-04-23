@@ -5,6 +5,8 @@ import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
 import { useBadges, incrementTotalRuns, getTotalRuns } from "../lib/hooks/use-badges";
+import { type RaceResult, positionSuffix } from "../lib/hooks/use-flash-run";
+import { RacePodium } from "./flash-run-screen";
 import { KCard, KButton, KIcon } from "./ui/primitives";
 import type { Badge } from "../lib/hooks/use-badges";
 
@@ -67,11 +69,12 @@ type Props = {
   onBack: () => void;
   isClaiming: boolean;
   claimed: boolean;
+  raceResult?: RaceResult;
 };
 
 // ─── Post-run screen ──────────────────────────────────────────────────────────
 
-export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaiming, claimed }: Props) {
+export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaiming, claimed, raceResult }: Props) {
   const { distanceMeters, durationSeconds, reachedSprint } = snapshot;
   const distKm = distanceMeters / 1000;
   const paceSecPerKm = distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
@@ -129,11 +132,38 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
 
       {/* Header */}
       <div style={{ textAlign: "center", paddingTop: 8 }}>
-        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.24em", color: "rgba(255,255,255,0.5)" }}>Run complete</div>
+        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.24em", color: "rgba(255,255,255,0.5)" }}>
+          {raceResult ? "Race complete" : "Run complete"}
+        </div>
         <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>
-          {distKm >= 10 ? "Incredible effort." : distKm >= 5 ? "Solid run." : "Good work."}
+          {raceResult
+            ? raceResult.dnf ? "Distance not reached." : `${positionSuffix(raceResult.position)} at submission`
+            : distKm >= 10 ? "Incredible effort." : distKm >= 5 ? "Solid run." : "Good work."}
         </div>
       </div>
+
+      {/* Race result (if this was a flash run) */}
+      {raceResult && (raceResult.dnf ? (
+        <div style={{ padding: "20px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 16 }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(239,68,68,0.7)", fontWeight: 700, marginBottom: 8 }}>
+            Race · Distance not met
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 6 }}>
+            Run doesn&apos;t count
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+            You covered {(raceResult.distanceM / 1000).toFixed(2)} km.
+            Your KAD reward still applies.
+          </div>
+        </div>
+      ) : (
+        <RacePodium
+          eventId={raceResult.eventId}
+          position={raceResult.position}
+          totalParticipants={raceResult.totalParticipants}
+          durationSec={raceResult.durationSec}
+        />
+      ))}
 
       {/* KAD hero */}
       <div style={{

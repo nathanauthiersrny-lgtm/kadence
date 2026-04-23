@@ -7,11 +7,12 @@ import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
 import { useBadges } from "../lib/hooks/use-badges";
 import { useCommunity } from "../lib/hooks/use-community";
+import { getFlashRunEvents, getEventStatus } from "../lib/hooks/use-flash-run";
 import { KCard, KButton, KPill, KAvatar, KIcon } from "./ui/primitives";
 import { WalletButton } from "./wallet-button";
 import { ellipsify } from "../lib/explorer";
 
-type Props = { onStart: () => void; onCommunity: () => void };
+type Props = { onStart: () => void; onCommunity: () => void; onFlashRuns: () => void };
 
 // ─── Streak Ring ─────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ function StreakRing({ streak, multiplier }: { streak: number; multiplier: number
 
 // ─── Home Screen ─────────────────────────────────────────────────────────────
 
-export function HomeScreen({ onStart, onCommunity }: Props) {
+export function HomeScreen({ onStart, onCommunity, onFlashRuns }: Props) {
   const { wallet, status } = useWallet();
   const address = wallet?.account.address;
   const { data: kadBalance } = useKadBalance(address);
@@ -286,6 +287,56 @@ export function HomeScreen({ onStart, onCommunity }: Props) {
           </KCard>
         </button>
       </div>
+
+      {/* Flash Runs widget */}
+      {(() => {
+        const events = getFlashRunEvents();
+        const liveEvents = events.filter((e) => getEventStatus(e) === "live");
+        const upcomingEvents = events.filter((e) => getEventStatus(e) === "upcoming");
+        const hasLive = liveEvents.length > 0;
+        return (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(255,255,255,0.55)", margin: 0, fontWeight: 600 }}>
+                Flash Runs
+              </h3>
+            </div>
+            <button
+              onClick={onFlashRuns}
+              style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+            >
+              <KCard padding={0} style={{ overflow: "hidden" }} glow={hasLive}>
+                <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <KIcon name="trophy" size={16} color={hasLive ? "#E0F479" : "rgba(255,255,255,0.4)"} />
+                    <div>
+                      {hasLive ? (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{liveEvents[0].name}</span>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#E0F479", display: "inline-block", boxShadow: "0 0 4px #E0F479" }} />
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                            {liveEvents.length} live · {upcomingEvents.length} upcoming
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>
+                            {upcomingEvents.length > 0 ? `${upcomingEvents.length} events coming up` : "Virtual race events"}
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Run anywhere, compete on-chain</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <KIcon name="chevron" size={14} color="rgba(255,255,255,0.3)" />
+                </div>
+              </KCard>
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Badges */}
       <div>
