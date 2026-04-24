@@ -13,12 +13,15 @@ export type RunResult = {
 
 export type RunTrackerReturn = {
   isRunning: boolean;
+  isPaused: boolean;
   distanceMeters: number;
   durationSeconds: number;
   speedKmh: number;
   route: LatLon[];
   geoError: string | null;
   startRun: () => void;
+  pauseRun: () => void;
+  resumeRun: () => void;
   /** Stops tracking and returns final {distance, duration} for complete_run. */
   stopRun: () => RunResult;
 };
@@ -37,10 +40,11 @@ function haversine(a: LatLon, b: LatLon): number {
   return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
-const GPS_WARMUP_MS = 10_000; // ignore positions for the first 10s
+const GPS_WARMUP_MS = 10_000;
 
 export function useRunTracker(): RunTrackerReturn {
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [distanceMeters, setDistanceMeters] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [speedKmh, setSpeedKmh] = useState(0);
@@ -50,20 +54,38 @@ export function useRunTracker(): RunTrackerReturn {
   const watchIdRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPointRef = useRef<LatLon | null>(null);
-  // Mutable refs so closures in watchPosition callback always see latest value.
   const distanceRef = useRef(0);
   const startTimeRef = useRef(0);
+
+  // Pause accounting: total ms spent paused, and when the current pause started.
+  const pausedMsRef = useRef(0);
+  const pauseStartRef = useRef<number | null>(null);
+  // Mutable flag so the GPS watchPosition callback can check it synchronously.
+  const isPausedRef = useRef(false);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const startTimer = useCallback(() => {
+    clearTimer();
+    timerRef.current = setInterval(() => {
+      setDurationSeconds(
+        Math.floor((Date.now() - startTimeRef.current - pausedMsRef.current) / 1_000),
+      );
+    }, 1_000);
+  }, [clearTimer]);
 
   const clearTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
+    clearTimer();
+  }, [clearTimer]);
 
   const startRun = useCallback(() => {
     if (!navigator.geolocation) {
@@ -71,8 +93,10 @@ export function useRunTracker(): RunTrackerReturn {
       return;
     }
 
-    // Reset everything
     distanceRef.current = 0;
+    pausedMsRef.current = 0;
+    pauseStartRef.current = null;
+    isPausedRef.current = false;
     lastPointRef.current = null;
     startTimeRef.current = Date.now();
     setDistanceMeters(0);
@@ -80,31 +104,26 @@ export function useRunTracker(): RunTrackerReturn {
     setRoute([]);
     setGeoError(null);
     setIsRunning(true);
+    setIsPaused(false);
 
-    // GPS watch — high accuracy, no caching
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        // GPS warmup: discard positions during the first GPS_WARMUP_MS
-        const elapsed = Date.now() - startTimeRef.current;
+        // Don't accumulate distance while paused.
+        if (isPausedRef.current) return;
+
+        const elapsed = Date.now() - startTimeRef.current - pausedMsRef.current;
         if (elapsed < GPS_WARMUP_MS) return;
 
-        // Discard low-accuracy fixes (worse than 30 m)
         if (pos.coords.accuracy > 30) return;
 
-        const point: LatLon = {
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-        };
+        const point: LatLon = { lat: pos.coords.latitude, lon: pos.coords.longitude };
 
-        // Use GPS-native speed when available (m/s → km/h)
         if (pos.coords.speed != null && pos.coords.speed >= 0) {
           setSpeedKmh(pos.coords.speed * 3.6);
         }
 
         if (lastPointRef.current !== null) {
           const segment = haversine(lastPointRef.current, point);
-          // Filter GPS noise: ignore sub-0.5m jitter and implausible jumps
-          // (>100 m between updates would be >360 km/h)
           if (segment >= 0.5 && segment <= 100) {
             distanceRef.current += segment;
             setDistanceMeters(distanceRef.current);
@@ -121,37 +140,59 @@ export function useRunTracker(): RunTrackerReturn {
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
     );
 
-    // Tick elapsed time every second
-    timerRef.current = setInterval(() => {
-      setDurationSeconds(
-        Math.floor((Date.now() - startTimeRef.current) / 1_000),
-      );
-    }, 1_000);
-  }, [clearTracking]);
+    startTimer();
+  }, [clearTracking, startTimer]);
+
+  const pauseRun = useCallback(() => {
+    if (!isRunning || isPausedRef.current) return;
+    isPausedRef.current = true;
+    pauseStartRef.current = Date.now();
+    setIsPaused(true);
+    clearTimer();
+    setSpeedKmh(0);
+  }, [isRunning, clearTimer]);
+
+  const resumeRun = useCallback(() => {
+    if (!isRunning || !isPausedRef.current) return;
+    if (pauseStartRef.current !== null) {
+      pausedMsRef.current += Date.now() - pauseStartRef.current;
+      pauseStartRef.current = null;
+    }
+    isPausedRef.current = false;
+    setIsPaused(false);
+    startTimer();
+  }, [isRunning, startTimer]);
 
   const stopRun = useCallback((): RunResult => {
+    // If paused when stopping, account for the current pause segment.
+    let totalPausedMs = pausedMsRef.current;
+    if (pauseStartRef.current !== null) {
+      totalPausedMs += Date.now() - pauseStartRef.current;
+    }
     const distance = BigInt(Math.round(distanceRef.current));
-    const duration = BigInt(
-      Math.floor((Date.now() - startTimeRef.current) / 1_000),
-    );
+    const duration = BigInt(Math.floor((Date.now() - startTimeRef.current - totalPausedMs) / 1_000));
     clearTracking();
     setIsRunning(false);
+    setIsPaused(false);
+    isPausedRef.current = false;
     return { distance, duration };
   }, [clearTracking]);
 
-  // Safety cleanup on unmount
   useEffect(() => {
     return () => clearTracking();
   }, [clearTracking]);
 
   return {
     isRunning,
+    isPaused,
     distanceMeters,
     durationSeconds,
     speedKmh,
     route,
     geoError,
     startRun,
+    pauseRun,
+    resumeRun,
     stopRun,
   };
 }

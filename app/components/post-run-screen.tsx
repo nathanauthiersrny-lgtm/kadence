@@ -4,13 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
-import { useBadges, incrementTotalRuns, getTotalRuns } from "../lib/hooks/use-badges";
+import { useBadges, incrementTotalRuns } from "../lib/hooks/use-badges";
 import { type RaceResult, positionSuffix } from "../lib/hooks/use-flash-run";
 import { RacePodium } from "./flash-run-screen";
-import { KCard, KButton, KIcon } from "./ui/primitives";
+import { KIcon } from "./ui/primitives";
 import type { Badge } from "../lib/hooks/use-badges";
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function formatDuration(s: number) {
   const hh = Math.floor(s / 3600);
@@ -22,7 +20,7 @@ function formatDuration(s: number) {
 function formatPace(distM: number, sec: number) {
   if (distM < 10) return "—";
   const secPerKm = (sec / distM) * 1000;
-  return `${Math.floor(secPerKm / 60)}:${Math.round(secPerKm % 60).toString().padStart(2, "0")} /km`;
+  return `${Math.floor(secPerKm / 60)}:${Math.round(secPerKm % 60).toString().padStart(2, "0")}`;
 }
 
 function rarity(distKm: number, paceMinPerKm: number): { stars: number; label: string } {
@@ -35,26 +33,6 @@ function rarity(distKm: number, paceMinPerKm: number): { stars: number; label: s
   const labels = ["", "Common", "Common", "Rare", "Epic", "Legendary"];
   return { stars, label: labels[stars] };
 }
-
-// ─── Star row ─────────────────────────────────────────────────────────────────
-
-function Stars({ count }: { count: number }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 10 }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <KIcon
-          key={i}
-          name="sparkle"
-          size={16}
-          color="#E0F479"
-          fill={i <= count ? "#E0F479" : "none"}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type RunSnapshot = {
   distanceMeters: number;
@@ -72,7 +50,8 @@ type Props = {
   raceResult?: RaceResult;
 };
 
-// ─── Post-run screen ──────────────────────────────────────────────────────────
+// Deterministic sparkle positions (avoids hydration mismatch from Math.random)
+const SPARKLE_POS = [[140, 200], [280, 160], [100, 320], [320, 320]] as const;
 
 export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaiming, claimed, raceResult }: Props) {
   const { distanceMeters, durationSeconds, reachedSprint } = snapshot;
@@ -81,7 +60,6 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
   const paceMinPerKm = paceSecPerKm / 60;
   const calsBurned = Math.round(distKm * 70);
   const { stars, label: rarityLabel } = rarity(distKm, paceMinPerKm);
-
   const kadEarned = distKm * multiplier;
   const xpEarned = Math.round(distKm * 10 * multiplier);
 
@@ -98,174 +76,204 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
   useEffect(() => {
     if (hasApplied.current) return;
     hasApplied.current = true;
-
-    // Update streak
     recordRun();
-
-    // Update quest progress
     completeQuest(distKm);
-
-    // Update XP
     addXP(xpEarned);
-    const newTotal = xpBefore + xpEarned; // approximate for display
+    const newTotal = xpBefore + xpEarned;
     setLevelAfter(Math.max(1, Math.floor(newTotal / 100) + 1));
     setXpAfter(newTotal % 100);
-
-    // Unlock badges
     const totalRuns = incrementTotalRuns();
-    const unlocked = checkAndUnlock({
-      distanceKm: distKm,
-      durationSeconds,
-      streak: streak + 1,
-      reachedSprint,
-      totalRuns,
-    });
+    const unlocked = checkAndUnlock({ distanceKm: distKm, durationSeconds, streak: streak + 1, reachedSprint, totalRuns });
     setNewBadges(unlocked);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const xpBarWidth = Math.min(xpAfter, 100);
   const didLevelUp = levelAfter > levelBefore;
 
+  const heroTitle = raceResult
+    ? raceResult.dnf ? "Distance not\nreached." : `${positionSuffix(raceResult.position)} at submission`
+    : distKm >= 10 ? "Incredible\neffort." : distKm >= 5 ? "Solid\nrun." : "Good\nwork.";
+
+  const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const weekday = new Date().toLocaleDateString([], { weekday: "short" });
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "20px 20px 32px", color: "#fff", fontFamily: "var(--font-sans)" }}>
+    <div style={{ display: "flex", flexDirection: "column", color: "#fff", fontFamily: "var(--font-sans)", background: "#0D0D0D", minHeight: "100%" }}>
 
-      {/* Header */}
-      <div style={{ textAlign: "center", paddingTop: 8 }}>
-        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.24em", color: "rgba(255,255,255,0.5)" }}>
-          {raceResult ? "Race complete" : "Run complete"}
-        </div>
-        <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>
-          {raceResult
-            ? raceResult.dnf ? "Distance not reached." : `${positionSuffix(raceResult.position)} at submission`
-            : distKm >= 10 ? "Incredible effort." : distKm >= 5 ? "Solid run." : "Good work."}
-        </div>
-      </div>
-
-      {/* Race result (if this was a flash run) */}
-      {raceResult && (raceResult.dnf ? (
-        <div style={{ padding: "20px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 16 }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(239,68,68,0.7)", fontWeight: 700, marginBottom: 8 }}>
-            Race · Distance not met
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 6 }}>
-            Run doesn&apos;t count
-          </div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-            You covered {(raceResult.distanceM / 1000).toFixed(2)} km.
-            Your KAD reward still applies.
-          </div>
-        </div>
-      ) : (
-        <RacePodium
-          eventId={raceResult.eventId}
-          position={raceResult.position}
-          totalParticipants={raceResult.totalParticipants}
-          durationSec={raceResult.durationSec}
-        />
-      ))}
-
-      {/* KAD hero */}
-      <div style={{
-        position: "relative",
-        textAlign: "center",
-        padding: "28px 0 20px",
-        borderRadius: 24,
-        background: "radial-gradient(ellipse at center, rgba(224,244,121,0.18) 0%, rgba(224,244,121,0) 60%)",
-      }}>
-        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.22em", color: "#E0F479", fontWeight: 700 }}>You earned</div>
+      {/* ── Editorial hero ─────────────────────────────────────────── */}
+      <div style={{ position: "relative", height: 440, overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: `
+          radial-gradient(ellipse at 50% 55%, rgba(224,244,121,0.45) 0%, rgba(224,244,121,0.1) 30%, transparent 60%),
+          linear-gradient(180deg, #0D1510 0%, #0D0D0D 80%)
+        ` }} />
         <div style={{
-          fontSize: 88,
-          fontWeight: 700,
-          color: "#E0F479",
-          letterSpacing: "-0.05em",
-          lineHeight: 1,
-          fontVariantNumeric: "tabular-nums",
-          marginTop: 8,
-          textShadow: "0 0 40px rgba(224,244,121,0.5)",
-        }}>
-          {kadEarned.toFixed(2)}
+          position: "absolute", inset: 0,
+          background: "radial-gradient(ellipse at 50% 55%, rgba(224,244,121,0.3) 0%, transparent 40%)",
+          animation: "kadHeroBreath 4s ease-in-out infinite",
+        }} />
+        <svg viewBox="0 0 414 440" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <g fill="rgba(255,255,255,0.05)">
+            {Array.from({ length: 70 }).map((_, i) => (
+              <circle key={i} cx={(i * 47 + 13) % 414} cy={(i * 31 + 7) % 440} r={(i % 3) * 0.4 + 0.3} />
+            ))}
+          </g>
+          {SPARKLE_POS.map((p, i) => (
+            <g key={i} transform={`translate(${p[0]} ${p[1]})`} stroke="#E0F479" strokeWidth="1" opacity="0.6">
+              <path d="M0 -8 V -3 M0 8 V 3 M-8 0 H -3 M8 0 H 3" />
+            </g>
+          ))}
+        </svg>
+
+        <div style={{ position: "absolute", top: 18, left: 22, right: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3FB977", boxShadow: "0 0 8px #3FB977" }} />
+            <span style={{ fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+              {raceResult ? "Race complete" : "Run complete"}
+            </span>
+          </div>
+          <span style={{ fontSize: 10, letterSpacing: "0.2em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>
+            {timestamp} · {weekday}
+          </span>
         </div>
-        <div style={{ fontSize: 18, color: "rgba(224,244,121,0.7)", letterSpacing: "0.08em", marginTop: 4, fontWeight: 500 }}>KAD</div>
-        <Stars count={stars} />
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-          {rarityLabel} run
+
+        <div style={{ position: "absolute", left: 22, right: 22, bottom: 36, textAlign: "center" }}>
+          <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: "-0.045em", lineHeight: 0.92 }}>
+            {heroTitle.split("\n").map((line, i) => <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>)}
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 16, textTransform: "uppercase", letterSpacing: "0.24em", fontWeight: 700 }}>You earned</div>
+          <div style={{
+            fontSize: 84, fontWeight: 700, color: "#E0F479", letterSpacing: "-0.05em", lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
+            textShadow: "0 0 32px rgba(224,244,121,0.4)",
+            marginTop: 6,
+          }}>
+            {kadEarned.toFixed(2)}
+          </div>
+          <div style={{ fontSize: 14, color: "#E0F479", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase" }}>KAD</div>
+          <div style={{ marginTop: 10, display: "flex", justifyContent: "center", gap: 4 }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <KIcon key={i} name="sparkle" size={14} color={i <= stars ? "#E0F479" : "rgba(255,255,255,0.2)"} fill={i <= stars ? "#E0F479" : "none"} stroke={i <= stars ? 0 : 1.5} />
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 6, letterSpacing: "0.22em", textTransform: "uppercase", fontWeight: 600 }}>{rarityLabel} run</div>
         </div>
       </div>
 
-      {/* Level / XP bar */}
-      <KCard padding={14}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-          <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>
-            {didLevelUp ? `Level ${levelBefore} → ${levelAfter} 🎉` : `Level ${levelBefore}`}
-          </span>
-          <span style={{ fontSize: 12, color: "#E0F479", fontVariantNumeric: "tabular-nums" }}>+{xpEarned} XP</span>
-        </div>
-        <div style={{ height: 10, borderRadius: 50, background: "rgba(224,244,121,0.1)", overflow: "hidden" }}>
-          <div style={{
-            width: `${xpBarWidth}%`,
-            height: "100%",
-            background: "linear-gradient(90deg, #3FB977, #E0F479)",
-            boxShadow: "0 0 8px rgba(224,244,121,0.5)",
-            borderRadius: 50,
-            transition: "width 0.8s ease",
-          }} />
-        </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
-          {100 - xpAfter > 0
-            ? <>{100 - xpAfter} XP to unlock <span style={{ color: "#E0F479" }}>{nextTitle}</span></>
-            : <span style={{ color: "#3FB977" }}>Level up!</span>
-          }
-        </div>
-      </KCard>
+      {/* ── Bento ──────────────────────────────────────────────────── */}
+      <div style={{ padding: "12px 16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
 
-      {/* Stats grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        {[
-          { label: "Time",  value: formatDuration(durationSeconds) },
-          { label: "Dist",  value: `${distKm.toFixed(2)} km` },
-          { label: "Pace",  value: formatPace(distanceMeters, durationSeconds) },
-          { label: "Cal",   value: String(calsBurned) },
-          { label: "XP",    value: `+${xpEarned}` },
-          { label: "Boost", value: `${multiplier}×` },
-        ].map((s) => (
-          <div key={s.label} style={{ padding: "12px 10px", background: "#1A1A1A", border: "1px solid rgba(224,244,121,0.15)", borderRadius: 12, textAlign: "center" }}>
-            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(255,255,255,0.45)" }}>{s.label}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums", marginTop: 4 }}>{s.value}</div>
+        {/* Race result (flash run) */}
+        {raceResult && (raceResult.dnf ? (
+          <div style={{ padding: 16, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 16 }}>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(239,68,68,0.7)", fontWeight: 700, marginBottom: 8 }}>Race · Distance not met</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Run doesn&apos;t count</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              You covered {(raceResult.distanceM / 1000).toFixed(2)} km. Your KAD reward still applies.
+            </div>
+          </div>
+        ) : (
+          <RacePodium
+            eventId={raceResult.eventId}
+            position={raceResult.position}
+            totalParticipants={raceResult.totalParticipants}
+            durationSec={raceResult.durationSec}
+          />
+        ))}
+
+        {/* Level + XP bar */}
+        <div style={{ padding: 14, borderRadius: 18, background: "linear-gradient(135deg, rgba(224,244,121,0.12) 0%, rgba(63,185,119,0.06) 100%)", border: "1px solid rgba(224,244,121,0.3)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em", fontWeight: 700 }}>
+                {didLevelUp ? `Level ${levelBefore} → ${levelAfter}` : `Level ${levelBefore}`}
+              </span>
+              <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>{levelTitle}</div>
+            </div>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#E0F479", fontVariantNumeric: "tabular-nums" }}>
+              +{xpEarned} <span style={{ fontSize: 10, color: "rgba(224,244,121,0.6)" }}>XP</span>
+            </span>
+          </div>
+          <div style={{ marginTop: 10, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.1)" }}>
+            <div style={{ width: `${xpBarWidth}%`, height: "100%", background: "linear-gradient(90deg, #3FB977, #E0F479)", borderRadius: 3, transition: "width 0.8s ease" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 10, color: "rgba(255,255,255,0.45)" }}>
+            <span>{xpAfter} / 100 XP</span>
+            <span style={{ color: "rgba(224,244,121,0.7)" }}>
+              {100 - xpAfter > 0 ? `${100 - xpAfter} XP to ` : ""}<strong>{nextTitle}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          {[
+            ["Time",  formatDuration(durationSeconds)],
+            ["Dist",  `${distKm.toFixed(2)} km`],
+            ["Pace",  formatPace(distanceMeters, durationSeconds)],
+            ["Cal",   String(calsBurned)],
+            ["XP",    `+${xpEarned}`],
+            ["Boost", `${multiplier}×`],
+          ].map(([l, v], i) => (
+            <div key={l} style={{
+              borderRadius: 14, padding: 12,
+              background: i === 5 ? "#E0F479" : "#1A1A1A",
+              color: i === 5 ? "#0D0D0D" : "#fff",
+              border: i === 5 ? "none" : "1px solid rgba(255,255,255,0.06)",
+            }}>
+              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.18em", fontWeight: 700, opacity: i === 5 ? 0.7 : 0.5 }}>{l}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Badge unlocks */}
+        {newBadges.map((badge) => (
+          <div key={badge.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "rgba(224,244,121,0.08)", border: "1px solid rgba(224,244,121,0.3)", borderRadius: 14 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 12, background: "#E0F479", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <KIcon name={badge.icon as Parameters<typeof KIcon>[0]["name"]} size={22} color="#0D0D0D" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.14em", color: "#E0F479", fontWeight: 700 }}>Badge unlocked</div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginTop: 1 }}>{badge.label}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{badge.desc}</div>
+            </div>
           </div>
         ))}
+
+        {/* Claim CTA */}
+        <button
+          onClick={onClaim}
+          disabled={isClaiming || claimed}
+          style={{
+            height: 62, borderRadius: 50, border: "none",
+            background: claimed ? "rgba(63,185,119,0.2)" : "#E0F479",
+            color: claimed ? "#3FB977" : "#0D0D0D",
+            fontFamily: "inherit", fontWeight: 700, fontSize: 15, letterSpacing: "0.14em", textTransform: "uppercase",
+            cursor: isClaiming || claimed ? "default" : "pointer",
+            boxShadow: claimed ? "none" : "0 0 28px rgba(224,244,121,0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            opacity: isClaiming ? 0.7 : 1,
+          }}
+        >
+          {claimed ? (
+            <><KIcon name="check" size={16} color="#3FB977" /> Claimed</>
+          ) : isClaiming ? "Recording…" : (
+            <><KIcon name="sparkle" size={16} color="#0D0D0D" fill="#0D0D0D" stroke={0} /> Claim {kadEarned.toFixed(2)} KAD</>
+          )}
+        </button>
+
+        <button
+          onClick={onBack}
+          style={{
+            background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer",
+            textAlign: "center", letterSpacing: "0.2em", textTransform: "uppercase", fontWeight: 600,
+            padding: "4px 0", fontFamily: "inherit", marginTop: 2,
+          }}
+        >
+          Back to home
+        </button>
       </div>
-
-      {/* New badge unlocks */}
-      {newBadges.map((badge) => (
-        <div key={badge.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "rgba(224,244,121,0.08)", border: "1px solid rgba(224,244,121,0.3)", borderRadius: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 12, background: "#E0F479", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <KIcon name={badge.icon as Parameters<typeof KIcon>[0]["name"]} size={22} color="#0D0D0D" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.14em", color: "#E0F479", fontWeight: 700 }}>Badge unlocked</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginTop: 1 }}>{badge.label}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{badge.desc}</div>
-          </div>
-        </div>
-      ))}
-
-      {/* CTAs */}
-      <KButton
-        size="lg"
-        style={{ width: "100%" }}
-        onClick={onClaim}
-        disabled={isClaiming || claimed}
-      >
-        {claimed ? "Claimed ✓" : isClaiming ? "Recording…" : `Claim ${kadEarned.toFixed(2)} KAD`}
-      </KButton>
-
-      <button
-        onClick={onBack}
-        style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", textAlign: "center", letterSpacing: "0.06em", textTransform: "uppercase", padding: "4px 0" }}
-      >
-        Back to home
-      </button>
     </div>
   );
 }
