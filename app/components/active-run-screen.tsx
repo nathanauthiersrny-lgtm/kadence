@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRunTracker } from "../lib/hooks/use-run-tracker";
+import { useRunTracker, type LatLon } from "../lib/hooks/use-run-tracker";
 import { useStreak } from "../lib/hooks/use-streak";
 import { type FlashRun } from "../lib/hooks/use-flash-run";
 import { KPill, KIcon } from "./ui/primitives";
@@ -16,13 +16,13 @@ function isSprint(kmh: number) {
 }
 
 type Props = {
-  onEnd: (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean }) => void;
+  onEnd: (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean; routeCoords: LatLon[] }) => void;
   onCancel: () => void;
   flashRun?: FlashRun;
 };
 
 export function ActiveRunScreen({ onEnd, flashRun }: Props) {
-  const { isRunning, isPaused, distanceMeters, durationSeconds, speedKmh, geoError, startRun, pauseRun, resumeRun, stopRun } = useRunTracker();
+  const { isRunning, isPaused, distanceMeters, durationSeconds, speedKmh, route, geoError, startRun, pauseRun, resumeRun, stopRun } = useRunTracker();
   const { multiplier } = useStreak();
 
   const [started, setStarted] = useState(false);
@@ -42,8 +42,9 @@ export function ActiveRunScreen({ onEnd, flashRun }: Props) {
   }, []);
 
   const handleEnd = () => {
+    const coords = route;
     const result = stopRun();
-    onEnd(result, { distanceMeters, durationSeconds, reachedSprint: reachedSprintRef.current });
+    onEnd(result, { distanceMeters, durationSeconds, reachedSprint: reachedSprintRef.current, routeCoords: coords });
   };
 
   const mm = Math.floor(durationSeconds / 60);

@@ -14,16 +14,20 @@ import { ActiveRunScreen } from "./components/active-run-screen";
 import { PostRunScreen } from "./components/post-run-screen";
 import { CommunityScreen } from "./components/community-screen";
 import { FlashRunScreen } from "./components/flash-run-screen";
+import { ActivityScreen } from "./components/activity-screen";
+import { ProfileScreen } from "./components/profile-screen";
 import { useCommunity } from "./lib/hooks/use-community";
 import { useFlashRun, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
-import type { RunResult } from "./lib/hooks/use-run-tracker";
+import { useRunHistory } from "./lib/hooks/use-run-history";
+import type { RunResult, LatLon } from "./lib/hooks/use-run-tracker";
 
-type View = "home" | "running" | "post-run" | "community" | "flash-runs";
+type View = "home" | "running" | "post-run" | "community" | "flash-runs" | "history" | "profile";
 
 type RunSnapshot = {
   distanceMeters: number;
   durationSeconds: number;
   reachedSprint: boolean;
+  routeCoords: LatLon[];
   result: RunResult;
   raceResult?: RaceResult;
 };
@@ -42,6 +46,7 @@ export default function Page() {
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { addRunContribution } = useCommunity();
   const { submitResult } = useFlashRun();
+  const { saveRun } = useRunHistory();
 
   const handleStart = useCallback(() => {
     setClaimed(false);
@@ -56,7 +61,7 @@ export default function Page() {
   }, []);
 
   const handleEnd = useCallback(
-    (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean }) => {
+    (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean; routeCoords: LatLon[] }) => {
       if (activeFlashRun) {
         const raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
         setRunSnapshot({ ...snapshot, result, raceResult });
@@ -98,10 +103,21 @@ export default function Page() {
       });
       const sig = await send({ instructions: [ix] });
       void mutateBalance();
+      // Persist run to history (on-chain confirmed)
+      const distKm = Number(runSnapshot.result.distance) / 1000;
+      const paceSecPerKm = runSnapshot.distanceMeters > 0
+        ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000
+        : 0;
+      saveRun({
+        date: new Date().toISOString(),
+        distance: runSnapshot.distanceMeters,
+        duration: runSnapshot.durationSeconds,
+        pace: paceSecPerKm,
+        kadEarned: distKm * multiplier,
+        routeCoords: runSnapshot.routeCoords,
+      });
       setClaimed(true);
       // Record contribution to community challenge
-      const distKm = Number(runSnapshot.result.distance) / 1000;
-      const paceSecPerKm = distKm > 0 ? runSnapshot.durationSeconds / distKm : 0;
       addRunContribution(distKm, paceSecPerKm);
       toast.success("KAD minted!", {
         description: sig ? (
@@ -129,6 +145,14 @@ export default function Page() {
     setView("home");
   }, []);
 
+  const handleHistory = useCallback(() => {
+    setView("history");
+  }, []);
+
+  const handleProfile = useCallback(() => {
+    setView("profile");
+  }, []);
+
   return (
     <div
       style={{
@@ -151,7 +175,15 @@ export default function Page() {
         }}
       >
         {view === "home" && (
-          <HomeScreen onStart={handleStart} onCommunity={handleCommunity} onFlashRuns={handleFlashRuns} />
+          <HomeScreen onStart={handleStart} onCommunity={handleCommunity} onFlashRuns={handleFlashRuns} onProfile={handleProfile} />
+        )}
+
+        {view === "history" && (
+          <ActivityScreen onBack={() => setView("home")} onStart={handleStart} />
+        )}
+
+        {view === "profile" && (
+          <ProfileScreen onBack={() => setView("home")} onHistory={handleHistory} />
         )}
 
         {view === "running" && (

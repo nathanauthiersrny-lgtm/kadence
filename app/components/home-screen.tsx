@@ -5,23 +5,20 @@ import { useKadBalance } from "../lib/hooks/use-kad-balance";
 import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
-import { useBadges } from "../lib/hooks/use-badges";
 import { useCommunity } from "../lib/hooks/use-community";
 import { getFlashRunEvents, getEventStatus } from "../lib/hooks/use-flash-run";
-import { KCard, KAvatar, KIcon } from "./ui/primitives";
+import { KCard, KIcon } from "./ui/primitives";
 import { WalletButton } from "./wallet-button";
-import { ellipsify } from "../lib/explorer";
 
-type Props = { onStart: () => void; onCommunity: () => void; onFlashRuns: () => void };
+type Props = { onStart: () => void; onCommunity: () => void; onFlashRuns: () => void; onProfile: () => void };
 
-export function HomeScreen({ onStart, onCommunity, onFlashRuns }: Props) {
+export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Props) {
   const { wallet, status } = useWallet();
   const address = wallet?.account.address;
   const { data: kadBalance } = useKadBalance(address);
-  const { level, levelXP, levelTitle, nextTitle } = useXP();
+  const { level, levelTitle } = useXP();
   const { streak, multiplier } = useStreak();
   const { quest, progressKm, completed, timeUntilReset } = useQuests();
-  const { badges } = useBadges();
   const { joinedCommunity, weekProgress, collectiveKm, challengeComplete } = useCommunity();
 
   const kadDisplay = kadBalance?.uiAmount ?? 0;
@@ -64,10 +61,24 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns }: Props) {
               Kadence
             </span>
           </div>
-          {status === "connected"
-            ? <KAvatar initials={initials} size={40} />
-            : <WalletButton />
-          }
+          {status === "connected" ? (
+            <button
+              onClick={onProfile}
+              style={{
+                width: 40, height: 40, borderRadius: "50%",
+                background: "var(--kad-card)",
+                border: "2px solid rgba(224,244,121,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, fontWeight: 700, color: "var(--kad-lime)",
+                letterSpacing: "-0.02em", cursor: "pointer",
+                padding: 0, fontFamily: "inherit",
+              }}
+            >
+              {initials.slice(0, 2).toUpperCase()}
+            </button>
+          ) : (
+            <WalletButton />
+          )}
         </div>
 
         {/* Editorial headline */}
@@ -220,64 +231,17 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns }: Props) {
           <KCard padding={14}>
             <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>Streak</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 40, fontWeight: 700, color: "#E0F479", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.04em", lineHeight: 1 }}>
+              <span style={{ fontSize: 32, fontWeight: 700, color: "#E0F479", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.04em", lineHeight: 1 }}>
                 {streak}
               </span>
               <span style={{ fontSize: 11, color: "rgba(224,244,121,0.6)", textTransform: "uppercase", letterSpacing: "0.1em" }}>days</span>
             </div>
-            <div style={{ display: "flex", gap: 3, marginTop: 10 }}>
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} style={{ flex: 1, height: 6, borderRadius: 3, background: i < Math.min(streak, 7) ? "#E0F479" : "rgba(224,244,121,0.15)" }} />
-              ))}
-            </div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
-              {multiplier > 1 ? `${multiplier}× boost` : "keep it up"}
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 14, lineHeight: 1.3 }}>
+              Lv {level} · <span style={{ color: "rgba(255,255,255,0.75)" }}>{levelTitle}</span>
             </div>
           </KCard>
         </div>
 
-        {/* Level / XP widget */}
-        <KCard padding={16}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>Level {level}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{levelTitle}</div>
-            </div>
-            <span style={{ fontSize: 13, color: "#E0F479", fontVariantNumeric: "tabular-nums" }}>{levelXP}/100 XP</span>
-          </div>
-          <div style={{ height: 4, borderRadius: 3, background: "rgba(224,244,121,0.12)", overflow: "hidden" }}>
-            <div style={{ width: `${levelXP}%`, height: "100%", background: "linear-gradient(90deg, #3FB977, #E0F479)", borderRadius: 3, transition: "width 0.6s ease" }} />
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
-            {100 - levelXP} XP to unlock <span style={{ color: "#E0F479" }}>{nextTitle}</span>
-          </div>
-        </KCard>
-
-        {/* Badges */}
-        <div>
-          <h3 style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", margin: "0 0 10px", fontWeight: 700 }}>
-            Badges · {badges.filter((b) => b.earned).length}/{badges.length}
-          </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {badges.map((b) => (
-              <div
-                key={b.id}
-                title={b.desc}
-                style={{
-                  aspectRatio: "1", borderRadius: 14,
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5,
-                  background: b.earned ? "rgba(224,244,121,0.1)" : "transparent",
-                  border: `1px solid ${b.earned ? "rgba(224,244,121,0.3)" : "rgba(255,255,255,0.08)"}`,
-                }}
-              >
-                <KIcon name={b.icon as Parameters<typeof KIcon>[0]["name"]} size={20} color={b.earned ? "#E0F479" : "rgba(255,255,255,0.2)"} />
-                <span style={{ fontSize: 9, color: b.earned ? "rgba(224,244,121,0.8)" : "rgba(255,255,255,0.3)", letterSpacing: "0.04em", textAlign: "center", padding: "0 4px" }}>
-                  {b.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

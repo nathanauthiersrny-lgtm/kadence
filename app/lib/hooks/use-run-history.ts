@@ -1,0 +1,118 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { LatLon } from "./use-run-tracker";
+
+export type RunEntry = {
+  id: string;
+  date: string;         // ISO string
+  distance: number;     // meters
+  duration: number;     // seconds
+  pace: number;         // seconds per km
+  kadEarned: number;
+  routeCoords: LatLon[];
+};
+
+export const RUNS_KEY = "kadence_runs";
+
+function buildSeeds(): RunEntry[] {
+  const now = Date.now();
+  const day = 86_400_000;
+  return [
+    {
+      id: "seed-1",
+      date: new Date(now - 6 * day).toISOString(),
+      distance: 8_400,
+      duration: 2_623,
+      pace: 312,
+      kadEarned: 8.4,
+      routeCoords: [],
+    },
+    {
+      id: "seed-2",
+      date: new Date(now - 4 * day).toISOString(),
+      distance: 5_200,
+      duration: 1_700,
+      pace: 327,
+      kadEarned: 5.2,
+      routeCoords: [],
+    },
+    {
+      id: "seed-3",
+      date: new Date(now - 2 * day).toISOString(),
+      distance: 3_100,
+      duration: 1_140,
+      pace: 368,
+      kadEarned: 3.1,
+      routeCoords: [],
+    },
+    {
+      id: "seed-4",
+      date: new Date(now - 1 * day).toISOString(),
+      distance: 10_050,
+      duration: 3_146,
+      pace: 313,
+      kadEarned: 10.05,
+      routeCoords: [],
+    },
+  ];
+}
+
+function load(): RunEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RUNS_KEY);
+    if (!raw) {
+      const seeds = buildSeeds();
+      localStorage.setItem(RUNS_KEY, JSON.stringify(seeds));
+      return seeds;
+    }
+    return JSON.parse(raw) as RunEntry[];
+  } catch {
+    return [];
+  }
+}
+
+/** Rolling 7-day window — reliable for demo regardless of weekday. */
+function sevenDaysAgo(): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function useRunHistory() {
+  const [runs, setRuns] = useState<RunEntry[]>([]);
+
+  useEffect(() => {
+    setRuns(load());
+  }, []);
+
+  const saveRun = useCallback((entry: Omit<RunEntry, "id">) => {
+    const full: RunEntry = { id: `run-${Date.now()}`, ...entry };
+    setRuns((prev) => {
+      const next = [full, ...prev];
+      localStorage.setItem(RUNS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const totalKad = runs.reduce((s, r) => s + r.kadEarned, 0);
+  const totalDistKm = runs.reduce((s, r) => s + r.distance / 1000, 0);
+
+  const cutoff = sevenDaysAgo();
+  const thisWeekRuns = runs.filter((r) => new Date(r.date) >= cutoff);
+  const weekKad = thisWeekRuns.reduce((s, r) => s + r.kadEarned, 0);
+  const weekDistKm = thisWeekRuns.reduce((s, r) => s + r.distance / 1000, 0);
+
+  return {
+    runs,
+    saveRun,
+    totalKad,
+    totalDistKm,
+    totalRuns: runs.length,
+    weekRunCount: thisWeekRuns.length,
+    weekKad,
+    weekDistKm,
+  };
+}
