@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { LatLon } from "./use-run-tracker";
+import { isDemoMode } from "./use-demo-mode";
 
 export type RunEntry = {
   id: string;
@@ -11,6 +12,9 @@ export type RunEntry = {
   pace: number;         // seconds per km
   kadEarned: number;
   routeCoords: LatLon[];
+  txSignature: string | null;
+  xpEarned: number;
+  badgeEarned: string | null;
 };
 
 export const RUNS_KEY = "kadence_runs";
@@ -27,6 +31,9 @@ function buildSeeds(): RunEntry[] {
       pace: 312,
       kadEarned: 8.4,
       routeCoords: [],
+      txSignature: null,
+      xpEarned: 84,
+      badgeEarned: null,
     },
     {
       id: "seed-2",
@@ -36,6 +43,9 @@ function buildSeeds(): RunEntry[] {
       pace: 327,
       kadEarned: 5.2,
       routeCoords: [],
+      txSignature: null,
+      xpEarned: 52,
+      badgeEarned: null,
     },
     {
       id: "seed-3",
@@ -45,6 +55,9 @@ function buildSeeds(): RunEntry[] {
       pace: 368,
       kadEarned: 3.1,
       routeCoords: [],
+      txSignature: null,
+      xpEarned: 31,
+      badgeEarned: null,
     },
     {
       id: "seed-4",
@@ -54,8 +67,26 @@ function buildSeeds(): RunEntry[] {
       pace: 313,
       kadEarned: 10.05,
       routeCoords: [],
+      txSignature: null,
+      xpEarned: 100,
+      badgeEarned: "10K Runner",
     },
   ];
+}
+
+function migrate(entry: Record<string, unknown>): RunEntry {
+  return {
+    id: (entry.id as string) ?? `run-${Date.now()}`,
+    date: (entry.date as string) ?? new Date().toISOString(),
+    distance: (entry.distance as number) ?? 0,
+    duration: (entry.duration as number) ?? 0,
+    pace: (entry.pace as number) ?? 0,
+    kadEarned: (entry.kadEarned as number) ?? 0,
+    routeCoords: (entry.routeCoords as LatLon[]) ?? [],
+    txSignature: (entry.txSignature as string) ?? null,
+    xpEarned: (entry.xpEarned as number) ?? 0,
+    badgeEarned: (entry.badgeEarned as string) ?? null,
+  };
 }
 
 function load(): RunEntry[] {
@@ -63,11 +94,17 @@ function load(): RunEntry[] {
   try {
     const raw = localStorage.getItem(RUNS_KEY);
     if (!raw) {
-      const seeds = buildSeeds();
-      localStorage.setItem(RUNS_KEY, JSON.stringify(seeds));
-      return seeds;
+      if (isDemoMode()) {
+        const seeds = buildSeeds();
+        localStorage.setItem(RUNS_KEY, JSON.stringify(seeds));
+        return seeds;
+      }
+      return [];
     }
-    return JSON.parse(raw) as RunEntry[];
+    const parsed = JSON.parse(raw) as Record<string, unknown>[];
+    const migrated = parsed.map(migrate);
+    if (isDemoMode()) return migrated;
+    return migrated.filter((r) => !r.id.startsWith("seed-"));
   } catch {
     return [];
   }

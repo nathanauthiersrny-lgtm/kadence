@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useWallet } from "../lib/wallet/context";
 import { useKadBalance } from "../lib/hooks/use-kad-balance";
 import { useXP } from "../lib/hooks/use-xp";
@@ -7,6 +8,7 @@ import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
 import { useCommunity } from "../lib/hooks/use-community";
 import { getFlashRunEvents, getEventStatus } from "../lib/hooks/use-flash-run";
+import { useDemoMode } from "../lib/hooks/use-demo-mode";
 import { KCard, KIcon } from "./ui/primitives";
 import { WalletButton } from "./wallet-button";
 
@@ -20,6 +22,20 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
   const { streak, multiplier } = useStreak();
   const { quest, progressKm, completed, timeUntilReset } = useQuests();
   const { joinedCommunity, weekProgress, collectiveKm, challengeComplete } = useCommunity();
+  const { demo, toggleDemo } = useDemoMode();
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogoTap = () => {
+    tapCountRef.current += 1;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 5) {
+      tapCountRef.current = 0;
+      toggleDemo();
+      return;
+    }
+    tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
+  };
 
   const kadDisplay = kadBalance?.uiAmount ?? 0;
   const initials = address ? address.slice(0, 2) : "??";
@@ -55,11 +71,23 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
 
         {/* Top bar */}
         <div style={{ position: "absolute", top: 20, left: 22, right: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            onClick={handleLogoTap}
+            style={{ display: "flex", alignItems: "center", gap: 8, cursor: "default", userSelect: "none" }}
+          >
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E0F479", boxShadow: "0 0 8px #E0F479" }} />
             <span style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)" }}>
               Kadence
             </span>
+            {demo && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.14em",
+                color: "#0D0D0D", background: "#E0F479",
+                padding: "2px 6px", borderRadius: 4, textTransform: "uppercase",
+              }}>
+                Demo
+              </span>
+            )}
           </div>
           {status === "connected" ? (
             <button

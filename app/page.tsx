@@ -115,6 +115,9 @@ export default function Page() {
         pace: paceSecPerKm,
         kadEarned: distKm * multiplier,
         routeCoords: runSnapshot.routeCoords,
+        txSignature: sig ?? null,
+        xpEarned: Math.round(distKm * 10),
+        badgeEarned: null,
       });
       setClaimed(true);
       // Record contribution to community challenge

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isDemoMode } from "./use-demo-mode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,10 +113,11 @@ const COMPETITOR_NAMES = [
 ];
 
 export function generateCompetitors(event: FlashRun): Competitor[] {
+  if (!isDemoMode()) return [];
   const seed = event.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const distKm = event.distanceM / 1000;
   const entries = COMPETITOR_NAMES.map((name, i) => {
-    const pace = 240 + i * 15 + seededRandom(seed + i * 7) * 10; // sec/km, 4:00–7:10 range
+    const pace = 240 + i * 15 + seededRandom(seed + i * 7) * 10;
     return { name, finishTimeSec: Math.round(distKm * pace) };
   });
   entries.sort((a, b) => a.finishTimeSec - b.finishTimeSec);
@@ -131,8 +133,12 @@ export function getEventStatus(event: FlashRun): FlashRunStatus {
 
 export function getGhostDistanceM(event: FlashRun, elapsedSec: number): number {
   const comps = generateCompetitors(event);
+  if (comps.length === 0) {
+    const defaultPace = 300;
+    return Math.min((elapsedSec / defaultPace) * 1000, event.distanceM);
+  }
   const distKm = event.distanceM / 1000;
-  const leaderPaceSec = comps[0].finishTimeSec / distKm; // sec/km
+  const leaderPaceSec = comps[0].finishTimeSec / distKm;
   return Math.min((elapsedSec / leaderPaceSec) * 1000, event.distanceM);
 }
 
@@ -141,8 +147,8 @@ export function isDistanceValid(event: FlashRun, distanceM: number): boolean {
 }
 
 export function getPlayerPosition(event: FlashRun, durationSec: number): number {
-  if (event.participantCount === 0) return 1;
   const comps = generateCompetitors(event);
+  if (comps.length === 0) return 1;
   return comps.filter((c) => c.finishTimeSec < durationSec).length + 1;
 }
 

@@ -340,31 +340,45 @@ function DetailView({ onBack, onLeave }: { onBack: () => void; onLeave: () => vo
         {/* Activity feed */}
         <div>
           <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10, padding: "0 4px" }}>Activity</div>
-          <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden" }}>
-            {feed.map((msg, i) => (
-              <div
-                key={msg.id}
-                style={{
-                  display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 14px",
-                  borderTop: i ? "1px solid rgba(255,255,255,0.04)" : "none",
-                }}
-              >
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                  background: avatarColors[i % avatarColors.length],
-                  color: avatarTextColors[i % avatarTextColors.length],
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 700,
-                }}>
-                  {msg.text.charAt(0)}
-                </div>
-                <span style={{ flex: 1, fontSize: 12, color: msg.id === "my-run" ? "rgba(224,244,121,0.9)" : "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
-                  {msg.text}
-                </span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", flexShrink: 0, paddingTop: 1 }}>{msg.time}</span>
+          {feed.length === 0 ? (
+            <div style={{
+              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 16, padding: "28px 16px", textAlign: "center",
+            }}>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
+                No activity yet this week
               </div>
-            ))}
-          </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+                Complete a run to contribute to the challenge
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden" }}>
+              {feed.map((msg, i) => (
+                <div
+                  key={msg.id}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 14px",
+                    borderTop: i ? "1px solid rgba(255,255,255,0.04)" : "none",
+                  }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                    background: avatarColors[i % avatarColors.length],
+                    color: avatarTextColors[i % avatarTextColors.length],
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                  }}>
+                    {msg.text.charAt(0)}
+                  </div>
+                  <span style={{ flex: 1, fontSize: 12, color: msg.id === "my-run" ? "rgba(224,244,121,0.9)" : "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
+                    {msg.text}
+                  </span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", flexShrink: 0, paddingTop: 1 }}>{msg.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <button

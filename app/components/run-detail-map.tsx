@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
+import type { Map } from "leaflet";
+import type { LatLon } from "../lib/hooks/use-run-tracker";
+
+type Props = { coords: LatLon[] };
+
+export function RunDetailMap({ coords }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<Map | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current || coords.length < 2) return;
+
+    import("leaflet").then((L) => {
+      if (!containerRef.current || mapRef.current) return;
+
+      const map = L.map(containerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: false,
+        dragging: false,
+        touchZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+      });
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19,
+      }).addTo(map);
+
+      const latLngs = coords.map((p) => [p.lat, p.lon] as [number, number]);
+      const poly = L.polyline(latLngs, { color: "#E0F479", weight: 4, opacity: 0.9 });
+      poly.addTo(map);
+
+      const start = latLngs[0];
+      const end = latLngs[latLngs.length - 1];
+
+      L.circleMarker(start, {
+        radius: 4,
+        color: "#FFFFFF",
+        fillColor: "#FFFFFF",
+        fillOpacity: 1,
+        weight: 2,
+      }).addTo(map);
+
+      L.circleMarker(end, {
+        radius: 4,
+        color: "#E0F479",
+        fillColor: "#E0F479",
+        fillOpacity: 1,
+        weight: 2,
+      }).addTo(map);
+
+      map.fitBounds(poly.getBounds(), { padding: [30, 30] });
+      mapRef.current = map;
+    });
+
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isDemoMode } from "./use-demo-mode";
 
 // --- Types ---
 
@@ -146,10 +147,10 @@ function simulatedGroupKm(
   weekKey: string,
   myKm: number,
 ): number {
+  if (!isDemoMode()) return myKm;
   const seed =
     community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) +
     weekKey.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  // Other members contribute 45–65 % of the goal baseline
   const baseline = community.challenge.target * (0.45 + seededRandom(seed) * 0.2);
   return Math.min(baseline + myKm, community.challenge.target * 1.5);
 }
@@ -160,23 +161,26 @@ const ROAD_NAMES = ["Alex", "Sam", "Jordan", "Casey", "Morgan", "Riley", "Quinn"
 const TRAIL_NAMES = ["Blake", "Sage", "River", "Cedar", "Wren", "Scout", "Ash", "Forest"];
 
 function generateFeed(community: Community, myKm: number): FeedMessage[] {
-  const names = community.type === "trail" ? TRAIL_NAMES : ROAD_NAMES;
-  const seed = community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const messages: FeedMessage[] = [];
 
   if (myKm > 0) {
     messages.push({
       id: "my-run",
-      text: `You've contributed ${myKm.toFixed(1)} km this week — keep it up! 🔥`,
+      text: `You've contributed ${myKm.toFixed(1)} km this week — keep it up!`,
       time: "just now",
     });
   }
+
+  if (!isDemoMode()) return messages;
+
+  const names = community.type === "trail" ? TRAIL_NAMES : ROAD_NAMES;
+  const seed = community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 
   const templates = [
     (n: string, km: string) => `${n} ran ${km} km`,
     (n: string, km: string) => `${n} just finished a ${km} km run!`,
     (n: string, km: string) => `${n} is on a roll — ${km} km today`,
-    (n: string, km: string) => `${n} smashed ${km} km this morning ⚡`,
+    (n: string, km: string) => `${n} smashed ${km} km this morning`,
   ];
 
   for (let i = 0; i < 6; i++) {

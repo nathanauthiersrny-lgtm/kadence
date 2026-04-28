@@ -518,19 +518,29 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
               </div>
             </div>
           </KCard>
-        ) : isCustom && !myResult ? (
-          <div style={{ textAlign: "center", padding: "28px 0", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No runners yet — be the first</div>
+        ) : (isCustom || competitors.length === 0) && !myResult ? (
+          <div style={{
+            background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 16, padding: "28px 16px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
+              No results yet
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+              Join and complete the run to appear here
+            </div>
+          </div>
         ) : (
           <div>
             <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10, padding: "0 4px" }}>
               {status === "past" ? "Final standings" : "Current leaders"}
             </div>
             <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden" }}>
-              {!isCustom && competitors.slice(0, 5).map((c) => (
+              {competitors.slice(0, 5).map((c) => (
                 <LeaderRow key={c.name} position={c.position} name={c.name} time={formatFinishTime(c.finishTimeSec)} />
               ))}
               {myResult && <LeaderRow position={myResult.position} name="You" time={formatFinishTime(myResult.durationSec)} isYou />}
-              {isJoined && !myResult && !isCustom && <LeaderRow position={competitors.length + 1} name="You" time="—" isYou />}
+              {isJoined && !myResult && competitors.length > 0 && <LeaderRow position={competitors.length + 1} name="You" time="—" isYou />}
             </div>
           </div>
         )}
