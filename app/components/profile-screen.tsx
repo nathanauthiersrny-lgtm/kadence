@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useWallet } from "../lib/wallet/context";
 import { useKadBalance } from "../lib/hooks/use-kad-balance";
@@ -17,15 +18,46 @@ function fmtTotalTime(seconds: number): string {
   return `${m}m`;
 }
 
+function avatarColor(addr: string): string {
+  const hex = addr.replace(/[^a-fA-F0-9]/g, "").slice(0, 6).padEnd(6, "0");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const lr = Math.min(255, Math.floor(r * 0.6 + 80));
+  const lg = Math.min(255, Math.floor(g * 0.6 + 80));
+  const lb = Math.min(255, Math.floor(b * 0.6 + 80));
+  return `rgb(${lr},${lg},${lb})`;
+}
+
+const KM_PER_MI = 1.60934;
+
 type Props = {
   onBack: () => void;
   onHistory: () => void;
 };
 
 export function ProfileScreen({ onBack, onHistory }: Props) {
-  const { wallet } = useWallet();
+  const { wallet, disconnect } = useWallet();
   const address = wallet?.account.address ?? "";
-  const initials = address ? address.slice(0, 2).toUpperCase() : "??";
+
+  const [profileName, setProfileName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [unit, setUnit] = useState<"km" | "mi">("km");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("kadence_profile_name");
+    if (saved) setProfileName(saved);
+    const savedUnit = localStorage.getItem("kadence_unit");
+    if (savedUnit === "mi") setUnit("mi");
+  }, []);
+
+  const avatarLetter = profileName
+    ? profileName[0].toUpperCase()
+    : address
+      ? address[0].toUpperCase()
+      : "?";
+  const avatarBg = address ? avatarColor(address) : "#555";
 
   const { data: kadBalance } = useKadBalance(address || undefined);
   const { level, levelXP, levelTitle } = useXP();
@@ -36,12 +68,33 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const totalDurationSec = runs.reduce((s, r) => s + r.duration, 0);
   const totalKad = kadBalance?.uiAmount ?? 0;
 
+  const displayDist = unit === "mi" ? totalDistKm / KM_PER_MI : totalDistKm;
+
   const copyAddress = () => {
     if (!address) return;
     navigator.clipboard.writeText(address).then(
       () => toast.success("Address copied"),
       () => toast.error("Couldn't copy"),
     );
+  };
+
+  const saveName = () => {
+    const trimmed = nameInput.trim().slice(0, 20);
+    if (trimmed) {
+      localStorage.setItem("kadence_profile_name", trimmed);
+      setProfileName(trimmed);
+    }
+    setEditingName(false);
+  };
+
+  const startEditing = () => {
+    setNameInput(profileName);
+    setEditingName(true);
+  };
+
+  const toggleUnit = (u: "km" | "mi") => {
+    setUnit(u);
+    localStorage.setItem("kadence_unit", u);
   };
 
   return (
@@ -78,17 +131,77 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 8 }}>
           <div style={{
             width: 80, height: 80, borderRadius: "50%",
-            background: "#1A1A1A",
-            border: "2px solid rgba(224,244,121,0.5)",
+            background: avatarBg,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 28, fontWeight: 700, color: "#E0F479",
+            fontSize: 32, fontWeight: 700, color: "#FFFFFF",
             letterSpacing: "-0.02em",
+            userSelect: "none",
           }}>
-            {initials}
+            {avatarLetter}
           </div>
-          {address && (
+
+          {editingName ? (
+            <form
+              onSubmit={(e) => { e.preventDefault(); saveName(); }}
+              style={{ display: "flex", alignItems: "center", gap: 8 }}
+            >
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value.slice(0, 20))}
+                onBlur={saveName}
+                placeholder="Add your name"
+                maxLength={20}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(224,244,121,0.4)",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  color: "#fff",
+                  fontSize: 16,
+                  fontFamily: "inherit",
+                  outline: "none",
+                  textAlign: "center",
+                  width: 200,
+                }}
+              />
+            </form>
+          ) : profileName ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <button
+                onClick={startEditing}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  padding: 0, fontFamily: "inherit",
+                }}
+              >
+                <span style={{ fontSize: 24, fontWeight: 700, color: "#FFFFFF" }}>
+                  {profileName}
+                </span>
+              </button>
+              {address && (
+                <button
+                  onClick={copyAddress}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    background: "none", border: "none", cursor: "pointer",
+                    padding: "2px 8px", borderRadius: 8,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <span style={{
+                    fontSize: 13, color: "rgba(255,255,255,0.45)",
+                    fontVariantNumeric: "tabular-nums", letterSpacing: "0.02em",
+                  }}>
+                    {ellipsify(address, 4)}
+                  </span>
+                  <KIcon name="share" size={12} color="rgba(255,255,255,0.3)" />
+                </button>
+              )}
+            </div>
+          ) : address ? (
             <button
-              onClick={copyAddress}
+              onClick={startEditing}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7,
                 background: "none", border: "none", cursor: "pointer",
@@ -104,7 +217,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               </span>
               <KIcon name="share" size={13} color="rgba(255,255,255,0.4)" />
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* KAD balance hero */}
@@ -150,13 +263,18 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
           {[
             { label: "Total runs", value: String(totalRuns) },
-            { label: "Total km",   value: totalDistKm.toFixed(1) },
+            { label: `Total ${unit}`, value: displayDist.toFixed(1), tap: true },
             { label: "Total time", value: fmtTotalTime(totalDurationSec) },
           ].map((s) => (
-            <div key={s.label} style={{
-              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-              borderRadius: 16, padding: 14,
-            }}>
+            <div
+              key={s.label}
+              onClick={s.tap ? () => toggleUnit(unit === "km" ? "mi" : "km") : undefined}
+              style={{
+                background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 16, padding: 14,
+                cursor: s.tap ? "pointer" : undefined,
+              }}
+            >
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 8, lineHeight: 1.3 }}>
                 {s.label}
               </div>
@@ -268,6 +386,23 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
             </span>
           </div>
           <KIcon name="chevron" size={16} color="rgba(255,255,255,0.4)" />
+        </button>
+
+        {/* Disconnect */}
+        <button
+          onClick={disconnect}
+          style={{
+            width: "100%", height: 56, borderRadius: 16,
+            background: "transparent",
+            border: "1px solid rgba(255,80,80,0.25)",
+            cursor: "pointer", padding: "0 18px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontFamily: "inherit",
+          }}
+        >
+          <span style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,80,80,0.8)" }}>
+            Disconnect wallet
+          </span>
         </button>
       </div>
     </div>

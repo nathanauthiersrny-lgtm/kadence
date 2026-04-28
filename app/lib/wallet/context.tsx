@@ -15,6 +15,11 @@ import type { WalletConnector, WalletSession } from "./types";
 import { discoverWallets, watchWallets } from "./standard";
 import { createWalletSigner } from "./signer";
 import { useCluster } from "../../components/cluster-context";
+import {
+  shouldUseMobileConnector,
+  createPhantomMobileConnector,
+  handlePhantomRedirect,
+} from "./phantom-mobile";
 
 const WALLET_STATUS = {
   DISCONNECTED: "disconnected",
@@ -44,9 +49,7 @@ export function WalletProvider({ children }: PropsWithChildren) {
   const { cluster } = useCluster();
   const chain = `solana:${cluster}`;
 
-  const [connectors, setConnectors] = useState<WalletConnector[]>(() =>
-    typeof window === "undefined" ? [] : discoverWallets()
-  );
+  const [connectors, setConnectors] = useState<WalletConnector[]>([]);
   const [session, setSession] = useState<WalletSession | undefined>();
   const [status, setStatus] = useState<WalletStatus>(
     WALLET_STATUS.DISCONNECTED
@@ -54,12 +57,28 @@ export function WalletProvider({ children }: PropsWithChildren) {
   const [error, setError] = useState<unknown>();
   const isReady = typeof window !== "undefined";
 
-  const connectorsRef = useRef<WalletConnector[]>(connectors);
+  const connectorsRef = useRef<WalletConnector[]>([]);
   const autoConnectAttempted = useRef(false);
+  const phantomRedirectHandled = useRef(false);
+
+  // Discover wallets on mount (client-side only)
+  useEffect(() => {
+    const standard = discoverWallets();
+    let initial = standard;
+    if (shouldUseMobileConnector() && !standard.length) {
+      initial = [createPhantomMobileConnector(), ...standard];
+    }
+    connectorsRef.current = initial;
+    setConnectors(initial);
+  }, []);
 
   const handleWalletsChanged = useCallback((updated: WalletConnector[]) => {
-    connectorsRef.current = updated;
-    setConnectors(updated);
+    let merged = updated;
+    if (shouldUseMobileConnector() && !updated.length) {
+      merged = [createPhantomMobileConnector(), ...updated];
+    }
+    connectorsRef.current = merged;
+    setConnectors(merged);
   }, []);
 
   const runAutoConnect = useCallback(async (connector: WalletConnector) => {
@@ -74,13 +93,43 @@ export function WalletProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
+  // Handle Phantom mobile deep link redirect
+  useEffect(() => {
+    if (phantomRedirectHandled.current) return;
+    phantomRedirectHandled.current = true;
+
+    try {
+      const result = handlePhantomRedirect();
+      if (!result) return;
+
+      if (result.action === "connect" && result.session) {
+        const connector = createPhantomMobileConnector();
+        connector.connect({ silent: true }).then((s) => {
+          setSession(s);
+          setStatus(WALLET_STATUS.CONNECTED);
+          localStorage.setItem(STORAGE_KEY, "phantom-mobile");
+        });
+      } else if (result.action === "disconnect") {
+        setSession(undefined);
+        setStatus(WALLET_STATUS.DISCONNECTED);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (err) {
+      setError(err);
+      setStatus(WALLET_STATUS.ERROR);
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = watchWallets(handleWalletsChanged);
 
     const lastId = localStorage.getItem(STORAGE_KEY);
     if (lastId && !autoConnectAttempted.current) {
       autoConnectAttempted.current = true;
-      const connector = connectorsRef.current.find((c) => c.id === lastId);
+      let connector = connectorsRef.current.find((c) => c.id === lastId);
+      if (!connector && lastId === "phantom-mobile" && shouldUseMobileConnector()) {
+        connector = createPhantomMobileConnector();
+      }
       if (connector) {
         void runAutoConnect(connector);
       }
