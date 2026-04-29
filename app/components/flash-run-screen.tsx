@@ -1,32 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   type FlashRun,
   type FlashRunStatus,
   type CreateEventInput,
   generateCompetitors,
   getEventStatus,
-  getFlashRunEvents,
   formatCountdown,
   formatFinishTime,
   positionSuffix,
   useFlashRun,
 } from "../lib/hooks/use-flash-run";
+import { useTick } from "../lib/hooks/use-tick";
 import { KCard, KButton, KPill, KIcon } from "./ui/primitives";
 
-// ─── Countdown ticker ─────────────────────────────────────────────────────────
+// ─── Countdown (shared tick) ─────────────────────────────────────────────────
 
 function useCountdown(target: number): string {
-  const [label, setLabel] = useState(() => formatCountdown(target - Date.now()));
-  useEffect(() => {
-    const t = setInterval(() => setLabel(formatCountdown(target - Date.now())), 1000);
-    return () => clearInterval(t);
-  }, [target]);
-  return label;
+  const now = useTick();
+  return formatCountdown(target - now);
 }
 
-// ─── Status pill ──────────────────────────────────────────────────────────────
+// ─── Status pill ─────────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: FlashRunStatus }) {
   if (status === "live") {
@@ -50,7 +46,7 @@ function StatusPill({ status }: { status: FlashRunStatus }) {
   );
 }
 
-// ─── Event card (browse list) ─────────────────────────────────────────────────
+// ─── Event card (browse list) ────────────────────────────────────────────────
 
 function EventCard({ event, hasResult, onSelect }: {
   event: FlashRun;
@@ -62,6 +58,7 @@ function EventCard({ event, hasResult, onSelect }: {
   const distKm = (event.distanceM / 1000).toFixed(1);
   const isLive = status === "live";
   const isPast = status === "past";
+  const isBoost = event.type === "boost";
 
   return (
     <button onClick={onSelect} style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
@@ -71,14 +68,18 @@ function EventCard({ event, hasResult, onSelect }: {
         position: "relative",
         overflow: "hidden",
         background: isLive
-          ? "linear-gradient(135deg, rgba(224,244,121,0.14) 0%, rgba(63,185,119,0.06) 100%)"
+          ? isBoost
+            ? "linear-gradient(135deg, rgba(224,244,121,0.08) 0%, rgba(224,244,121,0.03) 100%)"
+            : "linear-gradient(135deg, rgba(224,244,121,0.14) 0%, rgba(63,185,119,0.06) 100%)"
           : isPast ? "rgba(26,26,26,0.5)" : "#1A1A1A",
         border: isLive
-          ? "1px solid rgba(224,244,121,0.35)"
+          ? isBoost
+            ? "1px solid rgba(224,244,121,0.2)"
+            : "1px solid rgba(224,244,121,0.35)"
           : isPast ? "1px solid rgba(255,255,255,0.04)" : "1px solid rgba(255,255,255,0.06)",
         opacity: isPast ? 0.6 : 1,
       }}>
-        {isLive && (
+        {isLive && !isBoost && (
           <svg viewBox="0 0 300 160" style={{ position: "absolute", right: -40, top: -20, width: 220, opacity: 0.2 }}>
             <circle cx="150" cy="80" r="78" fill="none" stroke="#E0F479" strokeWidth="1" />
             <circle cx="150" cy="80" r="58" fill="none" stroke="#E0F479" strokeWidth="1" />
@@ -90,12 +91,21 @@ function EventCard({ event, hasResult, onSelect }: {
             <StatusPill status={status} />
             <div style={{ textAlign: "right" }}>
               {status !== "past" && (
-                <div style={{ fontSize: isLive ? 22 : 17, fontWeight: 700, color: "#E0F479", letterSpacing: "-0.02em" }}>
-                  {event.prizePoolKad.toLocaleString()} <span style={{ fontSize: 9, color: "rgba(224,244,121,0.55)" }}>KAD</span>
-                </div>
+                isBoost ? (
+                  <div style={{ fontSize: isLive ? 22 : 17, fontWeight: 700, color: "#E0F479", letterSpacing: "-0.02em" }}>
+                    {event.boostMultiplier}× <span style={{ fontSize: 9, color: "rgba(224,244,121,0.55)" }}>KAD</span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: isLive ? 22 : 17, fontWeight: 700, color: "#E0F479", letterSpacing: "-0.02em" }}>
+                    {event.prizePoolKad.toLocaleString()} <span style={{ fontSize: 9, color: "rgba(224,244,121,0.55)" }}>KAD</span>
+                  </div>
+                )
               )}
               {status === "past" && hasResult && (
                 <span style={{ fontSize: 11, color: "#3FB977", fontWeight: 700, letterSpacing: "0.06em" }}>Result logged</span>
+              )}
+              {status === "past" && isBoost && !hasResult && (
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 700, letterSpacing: "0.06em" }}>{event.boostMultiplier}× boost</span>
               )}
             </div>
           </div>
@@ -104,12 +114,22 @@ function EventCard({ event, hasResult, onSelect }: {
           </div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{event.subtitle}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: isLive ? 16 : 12, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-              <KIcon name="route" size={13} color="#E0F479" /> {distKm} km
-            </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-              <KIcon name="users" size={13} color="#E0F479" /> {event.participantCount}
-            </span>
+            {isBoost ? (
+              event.distanceM > 0 && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+                  <KIcon name="route" size={13} color="#E0F479" /> min {distKm} km
+                </span>
+              )
+            ) : (
+              <>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+                  <KIcon name="route" size={13} color="#E0F479" /> {distKm} km
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+                  <KIcon name="users" size={13} color="#E0F479" /> {event.participantCount}
+                </span>
+              </>
+            )}
             <span style={{ marginLeft: "auto", color: isPast ? "rgba(255,255,255,0.3)" : "#E0F479", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
               {status === "live" && `Closes ${countdown} →`}
               {status === "upcoming" && `Starts ${countdown} →`}
@@ -122,7 +142,7 @@ function EventCard({ event, hasResult, onSelect }: {
   );
 }
 
-// ─── Create event sheet ───────────────────────────────────────────────────────
+// ─── Create event sheet ──────────────────────────────────────────────────────
 
 const DISTANCE_OPTIONS = [
   { label: "1K",  value: 1_000 },
@@ -188,7 +208,7 @@ function CreateEventSheet({ onClose, onCreate }: { onClose: () => void; onCreate
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)", alignSelf: "center", marginBottom: 4 }} />
         <div>
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "#E0F479", fontWeight: 700, marginBottom: 4 }}>Create event</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>New Flash Run</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>New Race</div>
         </div>
         <div>
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.45)", marginBottom: 8, fontWeight: 600 }}>Event name</div>
@@ -224,7 +244,7 @@ function CreateEventSheet({ onClose, onCreate }: { onClose: () => void; onCreate
   );
 }
 
-// ─── Browse view ──────────────────────────────────────────────────────────────
+// ─── Browse view ─────────────────────────────────────────────────────────────
 
 type FilterTab = "all" | FlashRunStatus;
 
@@ -233,6 +253,7 @@ function BrowseView({ onBack, onSelect }: { onBack: () => void; onSelect: (event
   const [showCreate, setShowCreate] = useState(false);
   const { events, results } = useFlashRun();
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useTick(); // drive re-renders so event statuses auto-transition
 
   const handlePressStart = () => { pressTimer.current = setTimeout(() => setShowCreate(true), 1500); };
   const handlePressEnd = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
@@ -262,7 +283,7 @@ function BrowseView({ onBack, onSelect }: { onBack: () => void; onSelect: (event
           </button>
         </div>
         <div style={{ position: "relative" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "#E0F479", fontWeight: 700, marginBottom: 6 }}>Issue · live pools</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "#E0F479", fontWeight: 700, marginBottom: 6 }}>Schedule · this week</div>
           <h1
             onMouseDown={handlePressStart} onMouseUp={handlePressEnd} onMouseLeave={handlePressEnd}
             onTouchStart={handlePressStart} onTouchEnd={handlePressEnd}
@@ -271,7 +292,7 @@ function BrowseView({ onBack, onSelect }: { onBack: () => void; onSelect: (event
             Flash<br /><span style={{ color: "#E0F479" }}>Runs.</span>
           </h1>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 10, maxWidth: 300, lineHeight: 1.4 }}>
-            Run anywhere. Compete everywhere — pools close on a timer.
+            Boosts multiply your KAD. Races have prize pools — compete for the podium.
           </div>
         </div>
       </div>
@@ -321,12 +342,11 @@ function BrowseView({ onBack, onSelect }: { onBack: () => void; onSelect: (event
   );
 }
 
-// ─── Leaderboard row ──────────────────────────────────────────────────────────
+// ─── Leaderboard row ─────────────────────────────────────────────────────────
 
 function LeaderRow({ position, name, time, isYou = false }: {
   position: number; name: string; time: string; isYou?: boolean;
 }) {
-  const medalIcon = position <= 3 ? (["medal", "medal", "medal"] as const)[position - 1] : null;
   const medalColor = position === 1 ? "#E0F479" : position === 2 ? "rgba(255,255,255,0.6)" : "rgba(224,244,121,0.5)";
 
   return (
@@ -336,7 +356,7 @@ function LeaderRow({ position, name, time, isYou = false }: {
       borderTop: "1px solid rgba(255,255,255,0.05)",
     }}>
       <div style={{ width: 24, display: "flex", justifyContent: "center" }}>
-        {medalIcon
+        {position <= 3
           ? <KIcon name="medal" size={16} color={medalColor} />
           : <span style={{ fontSize: 12, color: isYou ? "#E0F479" : "rgba(255,255,255,0.4)", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{position}</span>
         }
@@ -347,7 +367,7 @@ function LeaderRow({ position, name, time, isYou = false }: {
   );
 }
 
-// ─── Prize pool breakdown ─────────────────────────────────────────────────────
+// ─── Prize pool breakdown ────────────────────────────────────────────────────
 
 function PrizeBreakdown({ pool }: { pool: number }) {
   const tiers = [
@@ -375,16 +395,32 @@ function PrizeBreakdown({ pool }: { pool: number }) {
   );
 }
 
-// ─── Detail view ──────────────────────────────────────────────────────────────
+// ─── Time window formatter ───────────────────────────────────────────────────
+
+function formatWindow(event: FlashRun): string {
+  const s = new Date(event.windowStart);
+  const e = new Date(event.windowEnd);
+  if (s.getHours() === 0 && e.getHours() === 23 && e.getMinutes() === 59) return "All day";
+  const fmt = (d: Date) => {
+    const h = d.getHours();
+    const period = h >= 12 ? "pm" : "am";
+    const hour = h % 12 || 12;
+    return `${hour}${period}`;
+  };
+  return `${fmt(s)}–${fmt(e)}`;
+}
+
+// ─── Detail view ─────────────────────────────────────────────────────────────
 
 function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: () => void; onStartRace: (e: FlashRun) => void }) {
   const { joinedIds, results, joinEvent, resetResult, deleteEvent } = useFlashRun();
-  const isCustom = event.participantCount === 0;
+  const isCustom = event.participantCount === 0 && event.type === "race";
   const status = getEventStatus(event);
   const isJoined = joinedIds.includes(event.id);
   const myResult = results[event.id];
   const competitors = generateCompetitors(event);
   const distKm = (event.distanceM / 1000).toFixed(1);
+  const isBoost = event.type === "boost";
 
   const countdownTarget = status === "upcoming" ? event.windowStart : event.windowEnd;
   const countdown = useCountdown(countdownTarget);
@@ -394,7 +430,10 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
 
       {/* Editorial hero */}
       <div style={{ position: "relative", height: 260, overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: `
+        <div style={{ position: "absolute", inset: 0, background: isBoost ? `
+          radial-gradient(ellipse at 60% 40%, rgba(224,244,121,0.2) 0%, transparent 55%),
+          linear-gradient(180deg, #1a2218 0%, #0D1510 70%, #0D0D0D 100%)
+        ` : `
           radial-gradient(ellipse at 60% 40%, rgba(224,244,121,0.3) 0%, transparent 55%),
           radial-gradient(ellipse at 20% 80%, rgba(63,185,119,0.2) 0%, transparent 50%),
           linear-gradient(180deg, #1a2418 0%, #0D1510 70%, #0D0D0D 100%)
@@ -420,9 +459,9 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
           <div style={{ fontSize: 10, color: "rgba(224,244,121,0.7)", textTransform: "uppercase", letterSpacing: "0.2em", fontWeight: 700 }}>
             {event.subtitle}
           </div>
-          {event.type === "event" && (
+          {isBoost && (
             <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#E0F479", background: "rgba(224,244,121,0.12)", border: "1px solid rgba(224,244,121,0.3)", borderRadius: 50, padding: "2px 8px" }}>
-              Organized
+              Boost
             </span>
           )}
         </div>
@@ -467,34 +506,71 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
       {/* Bento */}
       <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
 
-        {/* Stats trio */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-          {[
-            { icon: "route" as const, label: "Distance", value: `${distKm} km` },
-            { icon: "trophy" as const, label: "Prize pool", value: `${event.prizePoolKad.toLocaleString()} KAD`, accent: true },
-            { icon: "users" as const, label: "Runners", value: String(event.participantCount + (isJoined ? 1 : 0)) },
-          ].map((s, i) => (
-            <div key={i} style={{
-              borderRadius: 14, padding: 12,
-              background: s.accent ? "#E0F479" : "#1A1A1A",
-              color: s.accent ? "#0D0D0D" : "#fff",
-              border: s.accent ? "none" : "1px solid rgba(255,255,255,0.06)",
-            }}>
-              <KIcon name={s.icon} size={16} color={s.accent ? "#0D0D0D" : "#E0F479"} />
-              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.16em", fontWeight: 700, opacity: s.accent ? 0.65 : 0.5, marginTop: 8 }}>{s.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, letterSpacing: "-0.01em", lineHeight: 1.2 }}>{s.value}</div>
+        {/* Stats trio — different for boost vs race */}
+        {isBoost ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            {[
+              { icon: "zap" as const, label: "Multiplier", value: `${event.boostMultiplier}×`, accent: true },
+              { icon: "route" as const, label: "Min distance", value: event.distanceM > 0 ? `${distKm} km` : "Any" },
+              { icon: "timer" as const, label: "Window", value: formatWindow(event) },
+            ].map((s, i) => (
+              <div key={i} style={{
+                borderRadius: 14, padding: 12,
+                background: s.accent ? "#E0F479" : "#1A1A1A",
+                color: s.accent ? "#0D0D0D" : "#fff",
+                border: s.accent ? "none" : "1px solid rgba(255,255,255,0.06)",
+              }}>
+                <KIcon name={s.icon} size={16} color={s.accent ? "#0D0D0D" : "#E0F479"} />
+                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.16em", fontWeight: 700, opacity: s.accent ? 0.65 : 0.5, marginTop: 8 }}>{s.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, letterSpacing: "-0.01em", lineHeight: 1.2 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            {[
+              { icon: "route" as const, label: "Distance", value: `${distKm} km` },
+              { icon: "trophy" as const, label: "Prize pool", value: `${event.prizePoolKad.toLocaleString()} KAD`, accent: true },
+              { icon: "users" as const, label: "Runners", value: String(event.participantCount + (isJoined ? 1 : 0)) },
+            ].map((s, i) => (
+              <div key={i} style={{
+                borderRadius: 14, padding: 12,
+                background: s.accent ? "#E0F479" : "#1A1A1A",
+                color: s.accent ? "#0D0D0D" : "#fff",
+                border: s.accent ? "none" : "1px solid rgba(255,255,255,0.06)",
+              }}>
+                <KIcon name={s.icon} size={16} color={s.accent ? "#0D0D0D" : "#E0F479"} />
+                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.16em", fontWeight: 700, opacity: s.accent ? 0.65 : 0.5, marginTop: 8 }}>{s.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, letterSpacing: "-0.01em", lineHeight: 1.2 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Boost info card */}
+        {isBoost && (
+          <div style={{ padding: 20, background: "rgba(224,244,121,0.06)", border: "1px solid rgba(224,244,121,0.15)", borderRadius: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
+              {event.boostMultiplier}× KAD boost
             </div>
-          ))}
-        </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+              Run during this window to earn {event.boostMultiplier}× KAD on your base reward.
+              {event.distanceM > 0 && ` Minimum ${(event.distanceM / 1000).toFixed(0)} km to qualify.`}
+              {event.distanceM === 0 && " Any distance counts."}
+            </div>
+          </div>
+        )}
 
-        {/* Prize breakdown */}
-        <KCard padding={16}>
-          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10 }}>Prize distribution</div>
-          <PrizeBreakdown pool={event.prizePoolKad} />
-        </KCard>
+        {/* Prize breakdown — race only */}
+        {!isBoost && (
+          <KCard padding={16}>
+            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10 }}>Prize distribution</div>
+            <PrizeBreakdown pool={event.prizePoolKad} />
+          </KCard>
+        )}
 
-        {/* Your result (if past) */}
-        {status === "past" && myResult && (
+        {/* Your result (if past) — race only */}
+        {!isBoost && status === "past" && myResult && (
           <KCard padding={16} style={{ background: "rgba(63,185,119,0.1)", border: "1px solid rgba(63,185,119,0.3)" }}>
             <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "#3FB977", marginBottom: 8, fontWeight: 700 }}>Your result</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -505,68 +581,70 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
           </KCard>
         )}
 
-        {/* Leaderboard */}
-        {status === "upcoming" ? (
-          <KCard padding={20}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.4)", marginBottom: 10, fontWeight: 600 }}>Registered runners</div>
-              <div style={{ fontSize: 52, fontWeight: 700, color: "#E0F479", letterSpacing: "-0.03em", lineHeight: 1 }}>
-                {event.participantCount + (isJoined ? 1 : 0)}
+        {/* Leaderboard — race only */}
+        {!isBoost && (
+          status === "upcoming" ? (
+            <KCard padding={20}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.4)", marginBottom: 10, fontWeight: 600 }}>Registered runners</div>
+                <div style={{ fontSize: 52, fontWeight: 700, color: "#E0F479", letterSpacing: "-0.03em", lineHeight: 1 }}>
+                  {event.participantCount + (isJoined ? 1 : 0)}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+                  {isJoined ? "including you" : "runners so far"}
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
-                {isJoined ? "including you" : "runners so far"}
+            </KCard>
+          ) : (isCustom || competitors.length === 0) && !myResult ? (
+            <div style={{
+              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 16, padding: "28px 16px", textAlign: "center",
+            }}>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
+                No results yet
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+                Join and complete the run to appear here
               </div>
             </div>
-          </KCard>
-        ) : (isCustom || competitors.length === 0) && !myResult ? (
-          <div style={{
-            background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 16, padding: "28px 16px", textAlign: "center",
-          }}>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>
-              No results yet
+          ) : (
+            <div>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10, padding: "0 4px" }}>
+                {status === "past" ? "Final standings" : "Current leaders"}
+              </div>
+              <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden" }}>
+                {competitors.slice(0, 5).map((c) => (
+                  <LeaderRow key={c.name} position={c.position} name={c.name} time={formatFinishTime(c.finishTimeSec)} />
+                ))}
+                {myResult && <LeaderRow position={myResult.position} name="You" time={formatFinishTime(myResult.durationSec)} isYou />}
+                {isJoined && !myResult && competitors.length > 0 && <LeaderRow position={competitors.length + 1} name="You" time="—" isYou />}
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-              Join and complete the run to appear here
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10, padding: "0 4px" }}>
-              {status === "past" ? "Final standings" : "Current leaders"}
-            </div>
-            <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden" }}>
-              {competitors.slice(0, 5).map((c) => (
-                <LeaderRow key={c.name} position={c.position} name={c.name} time={formatFinishTime(c.finishTimeSec)} />
-              ))}
-              {myResult && <LeaderRow position={myResult.position} name="You" time={formatFinishTime(myResult.durationSec)} isYou />}
-              {isJoined && !myResult && competitors.length > 0 && <LeaderRow position={competitors.length + 1} name="You" time="—" isYou />}
-            </div>
-          </div>
+          )
         )}
 
-        {/* Action buttons */}
-        {status === "live" && !isJoined && (
+        {/* Action buttons — race only */}
+        {!isBoost && status === "live" && !isJoined && (
           <KButton size="lg" style={{ width: "100%" }} onClick={() => joinEvent(event.id)}>
             <KIcon name="zap" size={18} color="#0D0D0D" fill="#0D0D0D" /> Join race
           </KButton>
         )}
-        {status === "live" && isJoined && !myResult && (
+        {!isBoost && status === "live" && isJoined && !myResult && (
           <KButton size="lg" style={{ width: "100%" }} onClick={() => onStartRace(event)}>
             <KIcon name="play" size={16} color="#0D0D0D" fill="#0D0D0D" /> Start race
           </KButton>
         )}
-        {status === "upcoming" && !isJoined && (
+        {!isBoost && status === "upcoming" && !isJoined && (
           <KButton size="lg" variant="secondary" style={{ width: "100%" }} onClick={() => joinEvent(event.id)}>
             <KIcon name="check" size={16} color="#E0F479" /> Register
           </KButton>
         )}
-        {status === "upcoming" && isJoined && (
+        {!isBoost && status === "upcoming" && isJoined && (
           <div style={{ textAlign: "center", padding: 14, background: "rgba(224,244,121,0.08)", border: "1px solid rgba(224,244,121,0.2)", borderRadius: 14, fontSize: 13, color: "rgba(224,244,121,0.7)", fontWeight: 600 }}>
             Registered — check back when it goes live
           </div>
         )}
-        {status === "live" && myResult && (
+        {!isBoost && status === "live" && myResult && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ textAlign: "center", padding: 14, background: "rgba(63,185,119,0.1)", border: "1px solid rgba(63,185,119,0.3)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
               <KIcon name="check" size={16} color="#3FB977" />
@@ -577,6 +655,19 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
             </button>
           </div>
         )}
+
+        {/* Boost — live status */}
+        {isBoost && status === "live" && (
+          <div style={{ textAlign: "center", padding: 14, background: "rgba(224,244,121,0.08)", border: "1px solid rgba(224,244,121,0.2)", borderRadius: 14, fontSize: 13, color: "rgba(224,244,121,0.7)", fontWeight: 600 }}>
+            Boost active — start a run from home to earn {event.boostMultiplier}× KAD
+          </div>
+        )}
+        {isBoost && status === "upcoming" && (
+          <div style={{ textAlign: "center", padding: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, fontSize: 13, color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>
+            Boost starts in {countdown}
+          </div>
+        )}
+
         {isCustom && (
           <button onClick={() => { deleteEvent(event.id); onBack(); }} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.5)", fontSize: 12, cursor: "pointer", textAlign: "center", letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--font-sans)", marginTop: 8 }}>
             Delete event
@@ -587,12 +678,11 @@ function DetailView({ event, onBack, onStartRace }: { event: FlashRun; onBack: (
   );
 }
 
-// ─── Flash run screen (entry point) ──────────────────────────────────────────
+// ─── Flash run screen (entry point) ─────────────────────────────────────────
 
 type Props = { onBack: () => void; onStartRace: (event: FlashRun) => void };
 
 export function FlashRunScreen({ onBack, onStartRace }: Props) {
-  const events = getFlashRunEvents();
   const [selectedEvent, setSelectedEvent] = useState<FlashRun | null>(null);
 
   if (selectedEvent) {
@@ -607,7 +697,7 @@ export function FlashRunScreen({ onBack, onStartRace }: Props) {
   return <BrowseView onBack={onBack} onSelect={(e) => setSelectedEvent(e)} />;
 }
 
-// ─── Post-race podium (used in PostRunScreen) ─────────────────────────────────
+// ─── Post-race podium (used in PostRunScreen) ────────────────────────────────
 
 export function RacePodium({ eventId, position, totalParticipants, durationSec }: {
   eventId: string; position: number; totalParticipants: number; durationSec: number;

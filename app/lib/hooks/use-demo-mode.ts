@@ -17,16 +17,13 @@ export function useDemoMode() {
   }, []);
 
   const toggleDemo = useCallback(() => {
-    setDemo((prev) => {
-      const next = !prev;
-      if (next) {
-        localStorage.setItem(STORAGE_KEY, "true");
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-      window.location.reload();
-      return next;
-    });
+    const isCurrentlyOn = localStorage.getItem(STORAGE_KEY) === "true";
+    if (isCurrentlyOn) {
+      localStorage.removeItem(STORAGE_KEY);
+    } else {
+      localStorage.setItem(STORAGE_KEY, "true");
+    }
+    window.location.reload();
   }, []);
 
   return { demo, toggleDemo };

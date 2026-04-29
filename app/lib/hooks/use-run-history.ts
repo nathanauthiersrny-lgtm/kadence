@@ -125,10 +125,20 @@ export function useRunHistory() {
     setRuns(load());
   }, []);
 
-  const saveRun = useCallback((entry: Omit<RunEntry, "id">) => {
-    const full: RunEntry = { id: `run-${Date.now()}`, ...entry };
+  const saveRun = useCallback((entry: Omit<RunEntry, "id">): string => {
+    const id = `run-${Date.now()}`;
+    const full: RunEntry = { id, ...entry };
     setRuns((prev) => {
       const next = [full, ...prev];
+      localStorage.setItem(RUNS_KEY, JSON.stringify(next));
+      return next;
+    });
+    return id;
+  }, []);
+
+  const updateRunTx = useCallback((runId: string, txSignature: string) => {
+    setRuns((prev) => {
+      const next = prev.map((r) => r.id === runId ? { ...r, txSignature } : r);
       localStorage.setItem(RUNS_KEY, JSON.stringify(next));
       return next;
     });
@@ -145,6 +155,7 @@ export function useRunHistory() {
   return {
     runs,
     saveRun,
+    updateRunTx,
     totalKad,
     totalDistKm,
     totalRuns: runs.length,

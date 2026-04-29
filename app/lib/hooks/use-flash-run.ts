@@ -6,19 +6,19 @@ import { isDemoMode } from "./use-demo-mode";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type FlashRunStatus = "upcoming" | "live" | "past";
-export type FlashRunType = "flash" | "event";
+export type FlashRunType = "boost" | "race";
 
 export type FlashRun = {
   id: string;
   name: string;
   subtitle: string;
-  distanceM: number;
-  windowStart: number; // ms timestamp
-  windowEnd: number;   // ms timestamp
-  prizePoolKad: number;
-  participantCount: number;
+  distanceM: number;       // race: race distance, boost: min distance (0 = any)
+  windowStart: number;     // ms timestamp
+  windowEnd: number;       // ms timestamp
+  prizePoolKad: number;    // 0 for boost events
+  participantCount: number; // 0 for boost events
   type: FlashRunType;
-  communityTag?: string;
+  boostMultiplier?: number; // only for boost events
 };
 
 export type Competitor = {
@@ -36,70 +36,130 @@ export type RaceResult = {
   dnf?: boolean;
 };
 
-// ─── Seeded event catalogue ───────────────────────────────────────────────────
+// ─── Weekly schedule ─────────────────────────────────────────────────────────
 
-const H = 3_600_000;
-const D = 86_400_000;
+type ScheduleEntry = {
+  dayOfWeek: number; // 0=Sun … 6=Sat
+  id: string;
+  name: string;
+  subtitle: string;
+  type: FlashRunType;
+  startHour: number;
+  endHour: number; // 24 = end of day
+  distanceM: number;
+  prizePoolKad: number;
+  participantCount: number;
+  boostMultiplier?: number;
+};
 
-let _EVENTS: FlashRun[] | null = null;
+const SCHEDULE: ScheduleEntry[] = [
+  { dayOfWeek: 1, id: "morning-kickstart", name: "Morning Kickstart", subtitle: "Early boost · Road",          type: "boost", startHour: 6,  endHour: 10, distanceM: 3_000,  prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 1.5 },
+  { dayOfWeek: 2, id: "tempo-tuesday",     name: "Tempo Tuesday",     subtitle: "Weekly race · 5K",            type: "race",  startHour: 0,  endHour: 24, distanceM: 5_000,  prizePoolKad: 25, participantCount: 89  },
+  { dayOfWeek: 3, id: "midweek-push",      name: "Midweek Push",      subtitle: "Afternoon boost · Any distance", type: "boost", startHour: 12, endHour: 20, distanceM: 0,      prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 1.3 },
+  { dayOfWeek: 4, id: "speed-session",     name: "Speed Session",     subtitle: "Evening boost · Road",        type: "boost", startHour: 17, endHour: 21, distanceM: 3_000,  prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 2.0 },
+  { dayOfWeek: 5, id: "friday-burn",       name: "Friday Burn",       subtitle: "All-day boost · Road",        type: "boost", startHour: 0,  endHour: 24, distanceM: 3_000,  prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 1.5 },
+  { dayOfWeek: 6, id: "weekend-warrior",   name: "Weekend Warrior",   subtitle: "Weekend race · 10K",          type: "race",  startHour: 0,  endHour: 24, distanceM: 10_000, prizePoolKad: 50, participantCount: 134 },
+];
 
-function buildEvents(): FlashRun[] {
-  const now = Date.now();
-  return [
-    {
-      id: "city-5k",
-      name: "City 5K",
-      subtitle: "Weekly drop · Road",
-      distanceM: 5_000,
-      windowStart: now - 2 * H,
-      windowEnd: now + 4 * H,
-      prizePoolKad: 500,
-      participantCount: 134,
-      type: "flash",
-    },
-    {
-      id: "trail-10k",
-      name: "Trail Blaze 10K",
-      subtitle: "Nature run · Trail",
-      distanceM: 10_000,
-      windowStart: now + 3 * H,
-      windowEnd: now + 15 * H,
-      prizePoolKad: 1_200,
-      participantCount: 67,
-      type: "flash",
-      communityTag: "Trail",
-    },
-    {
-      id: "grand-prix",
-      name: "Kadence Grand Prix",
-      subtitle: "Half marathon · Organized",
-      distanceM: 21_097,
-      windowStart: now + 2 * D,
-      windowEnd: now + 3 * D,
-      prizePoolKad: 5_000,
-      participantCount: 312,
-      type: "event",
-    },
-    {
-      id: "dawn-3k",
-      name: "Dawn Patrol 3K",
-      subtitle: "Early birds · Road",
-      distanceM: 3_000,
-      windowStart: now - 26 * H,
-      windowEnd: now - 2 * H,
-      prizePoolKad: 200,
-      participantCount: 89,
-      type: "flash",
-    },
-  ];
+function getSundayEntry(date: Date): ScheduleEntry {
+  const weekOfMonth = Math.ceil(date.getDate() / 7);
+  if (weekOfMonth === 2) {
+    return { dayOfWeek: 0, id: "sunday-10k",  name: "Sunday 10K",  subtitle: "Featured race · 10K",            type: "race", startHour: 0, endHour: 24, distanceM: 10_000, prizePoolKad: 75,  participantCount: 95 };
+  }
+  if (weekOfMonth === 3) {
+    return { dayOfWeek: 0, id: "sunday-half",  name: "Sunday Half",  subtitle: "Featured race · Half marathon", type: "race", startHour: 0, endHour: 24, distanceM: 21_097, prizePoolKad: 150, participantCount: 67 };
+  }
+  return { dayOfWeek: 0, id: "sunday-5k", name: "Sunday 5K", subtitle: "Featured race · 5K", type: "race", startHour: 0, endHour: 24, distanceM: 5_000, prizePoolKad: 50, participantCount: 112 };
 }
+
+function getEntryForDay(date: Date): ScheduleEntry {
+  const dow = date.getDay();
+  if (dow === 0) return getSundayEntry(date);
+  return SCHEDULE.find((e) => e.dayOfWeek === dow)!;
+}
+
+function makeTimestamp(date: Date, hour: number): number {
+  const d = new Date(date);
+  if (hour >= 24) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(hour, 0, 0, 0);
+  }
+  return d.getTime();
+}
+
+function buildEventForDate(date: Date): FlashRun {
+  const entry = getEntryForDay(date);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const dateStr = `${y}-${m}-${d}`;
+
+  return {
+    id: `${entry.id}-${dateStr}`,
+    name: entry.name,
+    subtitle: entry.subtitle,
+    distanceM: entry.distanceM,
+    windowStart: makeTimestamp(date, entry.startHour),
+    windowEnd: makeTimestamp(date, entry.endHour),
+    prizePoolKad: entry.prizePoolKad,
+    participantCount: isDemoMode() ? entry.participantCount : 0,
+    type: entry.type,
+    boostMultiplier: entry.boostMultiplier,
+  };
+}
+
+function buildWeeklyEvents(): FlashRun[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Monday of current week
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow + 6) % 7));
+
+  // Two days before today (so PAST tab is never empty)
+  const twoDaysAgo = new Date(today);
+  twoDaysAgo.setDate(today.getDate() - 2);
+
+  const startDate = twoDaysAgo < monday ? twoDaysAgo : monday;
+
+  // Sunday of current week
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  const events: FlashRun[] = [];
+  for (const d = new Date(startDate); d <= sunday; d.setDate(d.getDate() + 1)) {
+    events.push(buildEventForDate(new Date(d)));
+  }
+
+  return events.sort((a, b) => a.windowStart - b.windowStart);
+}
+
+// Day-based cache — events only change when the calendar date rolls over
+let _cache: { key: string; events: FlashRun[] } | null = null;
 
 export function getFlashRunEvents(): FlashRun[] {
-  if (!_EVENTS) _EVENTS = buildEvents();
-  return _EVENTS;
+  const key = `${new Date().toISOString().slice(0, 10)}-${isDemoMode() ? "demo" : "real"}`;
+  if (_cache?.key === key) return _cache.events;
+  const events = buildWeeklyEvents();
+  _cache = { key, events };
+  return events;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Active boost ────────────────────────────────────────────────────────────
+
+export function getActiveBoost(): { multiplier: number; eventName: string; eventId: string } | null {
+  const events = getFlashRunEvents();
+  const now = Date.now();
+  const active = events.find(
+    (e) => e.type === "boost" && e.boostMultiplier != null && now >= e.windowStart && now < e.windowEnd,
+  );
+  if (!active) return null;
+  return { multiplier: active.boostMultiplier!, eventName: active.name, eventId: active.id };
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function seededRandom(seed: number): number {
   const x = Math.sin(seed + 1) * 10_000;
@@ -113,6 +173,7 @@ const COMPETITOR_NAMES = [
 ];
 
 export function generateCompetitors(event: FlashRun): Competitor[] {
+  if (event.type === "boost") return [];
   if (!isDemoMode()) return [];
   const seed = event.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const distKm = event.distanceM / 1000;
@@ -178,7 +239,7 @@ export function positionSuffix(pos: number): string {
   return `${pos}th`;
 }
 
-// ─── Storage ──────────────────────────────────────────────────────────────────
+// ─── Storage ─────────────────────────────────────────────────────────────────
 
 const KEY_JOINED = "kad_flash_joined";
 const KEY_RESULTS = "kad_flash_results";
@@ -213,7 +274,7 @@ function persistResult(r: RaceResult) {
   localStorage.setItem(KEY_RESULTS, JSON.stringify(all));
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── Hook ────────────────────────────────────────────────────────────────────
 
 export type CreateEventInput = {
   name: string;
@@ -278,13 +339,13 @@ export function useFlashRun(): FlashRunHookState {
     const event: FlashRun = {
       id: `custom-${now}`,
       name: input.name,
-      subtitle: "Custom event · Live now",
+      subtitle: "Custom race · Live now",
       distanceM: input.distanceM,
       windowStart: now,
       windowEnd: now + input.durationMs,
       prizePoolKad: input.prizePoolKad,
       participantCount: 0,
-      type: "flash",
+      type: "race",
     };
     setCustomEvents((prev) => {
       const next = [event, ...prev];

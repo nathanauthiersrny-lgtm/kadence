@@ -21,11 +21,12 @@ type Props = {
   flashRun?: FlashRun;
 };
 
-export function ActiveRunScreen({ onEnd, flashRun }: Props) {
+export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
   const { isRunning, isPaused, distanceMeters, durationSeconds, speedKmh, route, geoError, startRun, pauseRun, resumeRun, stopRun } = useRunTracker();
   const { multiplier } = useStreak();
 
   const [started, setStarted] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const reachedSprintRef = useRef(false);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export function ActiveRunScreen({ onEnd, flashRun }: Props) {
       padding: "18px 18px 28px",
     }}>
 
-      {/* Top bar: GPS pill left — KAD label right */}
+      {/* Top bar: GPS pill left — Cancel + KAD right */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         {flashRun ? (
           <KPill pulse icon={<KIcon name="trophy" size={11} color="#E0F479" />}>
@@ -73,10 +74,63 @@ export function ActiveRunScreen({ onEnd, flashRun }: Props) {
         ) : (
           <KPill pulse icon={<KIcon name="target" size={11} color="#E0F479" />}>GPS</KPill>
         )}
-        <span style={{ fontSize: 14, fontWeight: 600, color: "#E0F479", fontVariantNumeric: "tabular-nums" }}>
-          +{kadEarned.toFixed(2)} KAD
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            style={{
+              background: "none", border: "none", padding: 0, cursor: "pointer",
+              fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#E0F479", fontVariantNumeric: "tabular-nums" }}>
+            +{kadEarned.toFixed(2)} KAD
+          </span>
+        </div>
       </div>
+
+      {/* Cancel confirmation dialog */}
+      {showCancelConfirm && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 32,
+        }}>
+          <div style={{
+            background: "#1A1A1A", borderRadius: 20, padding: "28px 24px",
+            border: "1px solid rgba(255,255,255,0.1)", width: "100%", maxWidth: 320,
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Cancel this run?</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 24 }}>
+              No KAD will be earned.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                style={{
+                  height: 48, borderRadius: 50, border: "none", cursor: "pointer",
+                  background: "#E0F479", color: "#0D0D0D",
+                  fontFamily: "inherit", fontWeight: 700, fontSize: 15,
+                }}
+              >
+                Keep running
+              </button>
+              <button
+                onClick={() => { stopRun(); onCancel(); }}
+                style={{
+                  height: 48, borderRadius: 50, cursor: "pointer",
+                  border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
+                  color: "rgba(255,255,255,0.6)", fontFamily: "inherit", fontWeight: 500, fontSize: 14,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Timer — centered in the space between top bar and bottom group */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>

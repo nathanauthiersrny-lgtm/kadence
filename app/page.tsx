@@ -30,6 +30,7 @@ type RunSnapshot = {
   routeCoords: LatLon[];
   result: RunResult;
   raceResult?: RaceResult;
+  savedRunId?: string;
 };
 
 export default function Page() {
@@ -46,7 +47,7 @@ export default function Page() {
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { addRunContribution } = useCommunity();
   const { submitResult } = useFlashRun();
-  const { saveRun } = useRunHistory();
+  const { saveRun, updateRunTx } = useRunHistory();
 
   const handleStart = useCallback(() => {
     setClaimed(false);
@@ -62,16 +63,34 @@ export default function Page() {
 
   const handleEnd = useCallback(
     (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean; routeCoords: LatLon[] }) => {
+      let raceResult: RaceResult | undefined;
       if (activeFlashRun) {
-        const raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
-        setRunSnapshot({ ...snapshot, result, raceResult });
+        raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
         setActiveFlashRun(null);
-      } else {
-        setRunSnapshot({ ...snapshot, result });
       }
+      // Save to activity history immediately — don't gate on claim
+      const distKm = snapshot.distanceMeters / 1000;
+      const paceSecPerKm = snapshot.distanceMeters > 0
+        ? (snapshot.durationSeconds / snapshot.distanceMeters) * 1000
+        : 0;
+      const savedRunId = saveRun({
+        date: new Date().toISOString(),
+        distance: snapshot.distanceMeters,
+        duration: snapshot.durationSeconds,
+        pace: paceSecPerKm,
+        kadEarned: distKm * multiplier,
+        routeCoords: snapshot.routeCoords,
+        txSignature: null,
+        xpEarned: Math.round(distKm * 10),
+        badgeEarned: null,
+      });
+      addRunContribution(distKm, paceSecPerKm);
+
+      setRunSnapshot({ ...snapshot, result, raceResult, savedRunId });
+
       setView("post-run");
     },
-    [activeFlashRun, submitResult],
+    [activeFlashRun, submitResult, saveRun, multiplier, addRunContribution],
   );
 
   const handleCancel = useCallback(() => {
@@ -103,25 +122,10 @@ export default function Page() {
       });
       const sig = await send({ instructions: [ix] });
       void mutateBalance();
-      // Persist run to history (on-chain confirmed)
-      const distKm = Number(runSnapshot.result.distance) / 1000;
-      const paceSecPerKm = runSnapshot.distanceMeters > 0
-        ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000
-        : 0;
-      saveRun({
-        date: new Date().toISOString(),
-        distance: runSnapshot.distanceMeters,
-        duration: runSnapshot.durationSeconds,
-        pace: paceSecPerKm,
-        kadEarned: distKm * multiplier,
-        routeCoords: runSnapshot.routeCoords,
-        txSignature: sig ?? null,
-        xpEarned: Math.round(distKm * 10),
-        badgeEarned: null,
-      });
+      if (sig && runSnapshot.savedRunId) {
+        updateRunTx(runSnapshot.savedRunId, sig);
+      }
       setClaimed(true);
-      // Record contribution to community challenge
-      addRunContribution(distKm, paceSecPerKm);
       toast.success("KAD minted!", {
         description: sig ? (
           <a
@@ -140,7 +144,7 @@ export default function Page() {
     } finally {
       setIsClaiming(false);
     }
-  }, [signer, runSnapshot, send, getExplorerUrl, mutateBalance]);
+  }, [signer, runSnapshot, send, getExplorerUrl, mutateBalance, updateRunTx]);
 
   const handleBack = useCallback(() => {
     setRunSnapshot(null);

@@ -7,8 +7,9 @@ import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
 import { useCommunity } from "../lib/hooks/use-community";
-import { getFlashRunEvents, getEventStatus } from "../lib/hooks/use-flash-run";
+import { getFlashRunEvents, getEventStatus, formatCountdown } from "../lib/hooks/use-flash-run";
 import { useDemoMode } from "../lib/hooks/use-demo-mode";
+import { useTick } from "../lib/hooks/use-tick";
 import { KCard, KIcon } from "./ui/primitives";
 import { WalletButton } from "./wallet-button";
 
@@ -29,7 +30,7 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
   const handleLogoTap = () => {
     tapCountRef.current += 1;
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    if (tapCountRef.current >= 5) {
+    if (tapCountRef.current >= 3) {
       tapCountRef.current = 0;
       toggleDemo();
       return;
@@ -41,10 +42,13 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
   const initials = address ? address.slice(0, 2) : "??";
   const questProgress = Math.min((progressKm / quest.goalKm) * 100, 100);
 
+  const now = useTick();
   const events = getFlashRunEvents();
   const liveEvents = events.filter((e) => getEventStatus(e) === "live");
   const upcomingEvents = events.filter((e) => getEventStatus(e) === "upcoming");
   const hasLive = liveEvents.length > 0;
+  const nextUpcoming = upcomingEvents[0] ?? null;
+  const featuredEvent = hasLive ? liveEvents[0] : nextUpcoming;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", color: "#fff", fontFamily: "var(--font-sans)", background: "#0D0D0D", minHeight: "100%" }}>
@@ -168,8 +172,8 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
           </KCard>
         )}
 
-        {/* Flash Runs / LIVE event widget */}
-        {(hasLive || upcomingEvents.length > 0) && (
+        {/* Event widget — boost or race with ticking countdown */}
+        {featuredEvent && (
           <button
             onClick={onFlashRuns}
             style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
@@ -177,37 +181,55 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
             <div style={{
               position: "relative", padding: 16, borderRadius: 18,
               background: hasLive
-                ? "linear-gradient(135deg, rgba(224,244,121,0.12) 0%, rgba(63,185,119,0.08) 100%)"
+                ? featuredEvent.type === "boost"
+                  ? "linear-gradient(135deg, rgba(224,244,121,0.08) 0%, rgba(224,244,121,0.03) 100%)"
+                  : "linear-gradient(135deg, rgba(224,244,121,0.12) 0%, rgba(63,185,119,0.08) 100%)"
                 : "#1A1A1A",
               border: hasLive ? "1px solid rgba(224,244,121,0.3)" : "1px solid rgba(255,255,255,0.06)",
               overflow: "hidden",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 {hasLive ? (
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "3px 8px", borderRadius: 50,
-                    background: "#E0F479", color: "#0D0D0D",
-                    fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
-                  }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#0D0D0D", animation: "kadPulse 1.2s infinite" }} />
-                    LIVE NOW
-                  </span>
+                  featuredEvent.type === "boost" ? (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "3px 8px", borderRadius: 50,
+                      background: "rgba(224,244,121,0.15)", color: "#E0F479",
+                      fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
+                      border: "1px solid rgba(224,244,121,0.3)",
+                    }}>
+                      <KIcon name="zap" size={10} color="#E0F479" />
+                      BOOST ACTIVE
+                    </span>
+                  ) : (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "3px 8px", borderRadius: 50,
+                      background: "#E0F479", color: "#0D0D0D",
+                      fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
+                    }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#0D0D0D", animation: "kadPulse 1.2s infinite" }} />
+                      LIVE NOW
+                    </span>
+                  )
                 ) : (
-                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>Flash Runs</span>
-                )}
-                {hasLive && (
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.14em" }}>
-                    · {liveEvents.length} live
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>
+                    {featuredEvent.type === "boost" ? "Next boost" : "Next race"}
                   </span>
                 )}
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.1 }}>
-                {hasLive ? liveEvents[0].name : `${upcomingEvents.length} upcoming event${upcomingEvents.length !== 1 ? "s" : ""}`}
+                {featuredEvent.name}
               </div>
-              {hasLive && (
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
-                  {(liveEvents[0].distanceM / 1000).toFixed(1)} km · {liveEvents[0].prizePoolKad.toLocaleString()} KAD pool
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+                {featuredEvent.type === "boost"
+                  ? `${featuredEvent.boostMultiplier}× KAD${hasLive ? ` — ends in ${formatCountdown(featuredEvent.windowEnd - now)}` : ""}`
+                  : `${(featuredEvent.distanceM / 1000).toFixed(0)} km${hasLive ? ` — closes in ${formatCountdown(featuredEvent.windowEnd - now)}` : ` · ${featuredEvent.prizePoolKad} KAD pool`}`
+                }
+              </div>
+              {!hasLive && nextUpcoming && (
+                <div style={{ fontSize: 12, color: "#E0F479", marginTop: 4, fontWeight: 600 }}>
+                  Starts in {formatCountdown(nextUpcoming.windowStart - now)}
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: 12 }}>
