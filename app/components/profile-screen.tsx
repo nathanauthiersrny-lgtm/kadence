@@ -8,7 +8,6 @@ import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useBadges } from "../lib/hooks/use-badges";
 import { useRunHistory } from "../lib/hooks/use-run-history";
-import { isDemoMode } from "../lib/hooks/use-demo-mode";
 import { ellipsify } from "../lib/explorer";
 import { useSocialFeed } from "../lib/hooks/use-social-feed";
 import { KIcon } from "./ui/primitives";
@@ -107,7 +106,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
     if (savedUnit === "mi") setUnit("mi");
 
     let loaded = loadTrophies();
-    if (loaded.length === 0 && isDemoMode()) {
+    if (loaded.length === 0) {
       loaded = buildDemoTrophies();
       localStorage.setItem(TROPHIES_KEY, JSON.stringify(loaded));
     }

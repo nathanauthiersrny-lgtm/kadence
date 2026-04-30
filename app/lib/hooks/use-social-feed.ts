@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { isDemoMode } from "./use-demo-mode";
 import type { LatLon } from "./use-run-tracker";
 
 export type SharedRun = {
@@ -85,8 +84,6 @@ function saveFires(fires: Record<string, boolean>) {
 }
 
 function generateSimulatedRuns(communityId: string): SharedRun[] {
-  if (!isDemoMode()) return [];
-
   const monday = getMondayOfWeek();
   const weekSeed = monday.getTime();
   const commSeed = communityId.split("").reduce((a, c) => a + c.charCodeAt(0), 0);

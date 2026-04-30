@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { isDemoMode } from "./use-demo-mode";
 
 // --- Types ---
 
@@ -185,7 +184,6 @@ function simulatedGroupKm(
   _weekKey: string,
   myKm: number,
 ): number {
-  if (!isDemoMode()) return myKm;
   const dow = new Date().getDay();
   const dayScales: Record<number, number> = {
     1: 0.08, 2: 0.20, 3: 0.35, 4: 0.50, 5: 0.65, 6: 0.80, 0: 0.92,
@@ -225,8 +223,6 @@ function generateFeed(community: Community, myKm: number): FeedMessage[] {
       time: "just now",
     });
   }
-
-  if (!isDemoMode()) return messages;
 
   const names = community.type === "trail" ? TRAIL_NAMES : ROAD_NAMES;
   const seed = community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);

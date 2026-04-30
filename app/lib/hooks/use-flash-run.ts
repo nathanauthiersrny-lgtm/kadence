@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isDemoMode } from "./use-demo-mode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,7 +102,7 @@ function buildEventForDate(date: Date): FlashRun {
     windowStart: makeTimestamp(date, entry.startHour),
     windowEnd: makeTimestamp(date, entry.endHour),
     prizePoolKad: entry.prizePoolKad,
-    participantCount: isDemoMode() ? entry.participantCount : 0,
+    participantCount: entry.participantCount,
     type: entry.type,
     boostMultiplier: entry.boostMultiplier,
   };
@@ -140,7 +139,7 @@ function buildWeeklyEvents(): FlashRun[] {
 let _cache: { key: string; events: FlashRun[] } | null = null;
 
 export function getFlashRunEvents(): FlashRun[] {
-  const key = `${new Date().toISOString().slice(0, 10)}-${isDemoMode() ? "demo" : "real"}`;
+  const key = new Date().toISOString().slice(0, 10);
   if (_cache?.key === key) return _cache.events;
   const events = buildWeeklyEvents();
   _cache = { key, events };
@@ -174,7 +173,6 @@ const COMPETITOR_NAMES = [
 
 export function generateCompetitors(event: FlashRun): Competitor[] {
   if (event.type === "boost") return [];
-  if (!isDemoMode()) return [];
   const seed = event.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const distKm = event.distanceM / 1000;
   const entries = COMPETITOR_NAMES.map((name, i) => {
