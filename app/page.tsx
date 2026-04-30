@@ -17,9 +17,32 @@ import { FlashRunScreen } from "./components/flash-run-screen";
 import { ActivityScreen } from "./components/activity-screen";
 import { ProfileScreen } from "./components/profile-screen";
 import { useCommunity } from "./lib/hooks/use-community";
-import { useFlashRun, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
+import { useFlashRun, getActiveBoost, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
 import { useRunHistory } from "./lib/hooks/use-run-history";
 import type { RunResult, LatLon } from "./lib/hooks/use-run-tracker";
+
+type Trophy = {
+  id: string;
+  eventName: string;
+  eventType: string;
+  date: string;
+  position: number;
+  totalRunners: number;
+  timeSeconds: number;
+  distanceMeters: number;
+  kadWon: number;
+};
+
+const TROPHIES_KEY = "kadence_trophies";
+
+function saveTrophy(trophy: Trophy) {
+  try {
+    const raw = localStorage.getItem(TROPHIES_KEY);
+    const trophies: Trophy[] = raw ? JSON.parse(raw) : [];
+    trophies.unshift(trophy);
+    localStorage.setItem(TROPHIES_KEY, JSON.stringify(trophies));
+  } catch { /* ignore */ }
+}
 
 type View = "home" | "running" | "post-run" | "community" | "flash-runs" | "history" | "profile";
 
@@ -31,6 +54,12 @@ type RunSnapshot = {
   result: RunResult;
   raceResult?: RaceResult;
   savedRunId?: string;
+  baseKAD: number;
+  boostMultiplier: number;
+  boostName: string | null;
+  underdogMultiplier: number;
+  finalKAD: number;
+  flashRunEvent?: FlashRun;
 };
 
 export default function Page() {
@@ -64,29 +93,52 @@ export default function Page() {
   const handleEnd = useCallback(
     (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean; routeCoords: LatLon[] }) => {
       let raceResult: RaceResult | undefined;
-      if (activeFlashRun) {
-        raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
-        setActiveFlashRun(null);
-      }
-      // Save to activity history immediately — don't gate on claim
-      const distKm = snapshot.distanceMeters / 1000;
-      const paceSecPerKm = snapshot.distanceMeters > 0
-        ? (snapshot.durationSeconds / snapshot.distanceMeters) * 1000
-        : 0;
-      const savedRunId = saveRun({
-        date: new Date().toISOString(),
-        distance: snapshot.distanceMeters,
-        duration: snapshot.durationSeconds,
-        pace: paceSecPerKm,
-        kadEarned: distKm * multiplier,
-        routeCoords: snapshot.routeCoords,
-        txSignature: null,
-        xpEarned: Math.round(distKm * 10),
-        badgeEarned: null,
-      });
-      addRunContribution(distKm, paceSecPerKm);
+      let savedRunId: string | undefined;
+      try {
+        if (activeFlashRun) {
+          raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
+        }
+        const distKm = snapshot.distanceMeters / 1000;
+        const paceSecPerKm = snapshot.distanceMeters > 0
+          ? (snapshot.durationSeconds / snapshot.distanceMeters) * 1000
+          : 0;
 
-      setRunSnapshot({ ...snapshot, result, raceResult, savedRunId });
+        const baseKAD = distKm;
+        const boost = getActiveBoost();
+        const boostMult = boost?.multiplier ?? 1;
+        const boostName = boost?.eventName ?? null;
+        const underdogMult = (raceResult && !raceResult.dnf && raceResult.position >= 4) ? 1.2 : 1;
+        const finalKAD = Math.round(baseKAD * multiplier * boostMult * underdogMult * 100) / 100;
+
+        savedRunId = saveRun({
+          date: new Date().toISOString(),
+          distance: snapshot.distanceMeters,
+          duration: snapshot.durationSeconds,
+          pace: paceSecPerKm,
+          kadEarned: finalKAD,
+          routeCoords: snapshot.routeCoords,
+          txSignature: null,
+          xpEarned: Math.round(distKm * 10),
+          badgeEarned: null,
+        });
+        addRunContribution(distKm, paceSecPerKm);
+        if (activeFlashRun) setActiveFlashRun(null);
+
+        setRunSnapshot({
+          ...snapshot, result, raceResult, savedRunId,
+          baseKAD, boostMultiplier: boostMult, boostName, underdogMultiplier: underdogMult, finalKAD,
+          flashRunEvent: activeFlashRun ?? undefined,
+        });
+      } catch (err) {
+        console.error("Failed to persist run data:", err);
+        if (activeFlashRun) setActiveFlashRun(null);
+        const distKm = snapshot.distanceMeters / 1000;
+        setRunSnapshot({
+          ...snapshot, result, raceResult,
+          baseKAD: distKm, boostMultiplier: 1, boostName: null, underdogMultiplier: 1, finalKAD: Math.round(distKm * multiplier * 100) / 100,
+          flashRunEvent: activeFlashRun ?? undefined,
+        });
+      }
 
       setView("post-run");
     },
@@ -107,7 +159,11 @@ export default function Page() {
   }, []);
 
   const handleClaim = useCallback(async () => {
-    if (!signer || !runSnapshot) return;
+    if (!signer) {
+      toast.error("Connect your wallet to claim KAD.");
+      return;
+    }
+    if (!runSnapshot) return;
     if (runSnapshot.result.distance < 100n) {
       toast.error("Run too short — need at least 100 m to earn KAD.");
       return;
@@ -126,6 +182,24 @@ export default function Page() {
         updateRunTx(runSnapshot.savedRunId, sig);
       }
       setClaimed(true);
+      if (runSnapshot.flashRunEvent?.type === "race" && runSnapshot.raceResult && !runSnapshot.raceResult.dnf) {
+        const pool = runSnapshot.flashRunEvent.prizePoolKad;
+        let kadWon = 0;
+        if (runSnapshot.raceResult.position === 1) kadWon = Math.round(pool * 0.5 * 100) / 100;
+        else if (runSnapshot.raceResult.position === 2) kadWon = Math.round(pool * 0.3 * 100) / 100;
+        else if (runSnapshot.raceResult.position === 3) kadWon = Math.round(pool * 0.2 * 100) / 100;
+        saveTrophy({
+          id: String(Date.now()),
+          eventName: runSnapshot.flashRunEvent.name,
+          eventType: runSnapshot.flashRunEvent.name,
+          date: new Date().toISOString(),
+          position: runSnapshot.raceResult.position,
+          totalRunners: runSnapshot.raceResult.totalParticipants,
+          timeSeconds: runSnapshot.durationSeconds,
+          distanceMeters: runSnapshot.distanceMeters,
+          kadWon,
+        });
+      }
       toast.success("KAD minted!", {
         description: sig ? (
           <a

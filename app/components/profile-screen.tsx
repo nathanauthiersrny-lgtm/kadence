@@ -8,8 +8,61 @@ import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useBadges } from "../lib/hooks/use-badges";
 import { useRunHistory } from "../lib/hooks/use-run-history";
+import { isDemoMode } from "../lib/hooks/use-demo-mode";
 import { ellipsify } from "../lib/explorer";
 import { KIcon } from "./ui/primitives";
+
+type Trophy = {
+  id: string;
+  eventName: string;
+  eventType: string;
+  date: string;
+  position: number;
+  totalRunners: number;
+  timeSeconds: number;
+  distanceMeters: number;
+  kadWon: number;
+};
+
+const TROPHIES_KEY = "kadence_trophies";
+
+function loadTrophies(): Trophy[] {
+  try {
+    return JSON.parse(localStorage.getItem(TROPHIES_KEY) ?? "[]");
+  } catch { return []; }
+}
+
+function buildDemoTrophies(): Trophy[] {
+  const now = Date.now();
+  const day = 86_400_000;
+  return [
+    { id: "trophy-1", eventName: "Weekend Warrior", eventType: "Weekend Warrior", date: new Date(now - 1 * day).toISOString(), position: 1, totalRunners: 134, timeSeconds: 2520, distanceMeters: 10_000, kadWon: 25 },
+    { id: "trophy-2", eventName: "Tempo Tuesday", eventType: "Tempo Tuesday", date: new Date(now - 5 * day).toISOString(), position: 2, totalRunners: 89, timeSeconds: 1380, distanceMeters: 5_000, kadWon: 7.5 },
+    { id: "trophy-3", eventName: "Sunday 5K", eventType: "Sunday 5K", date: new Date(now - 8 * day).toISOString(), position: 4, totalRunners: 112, timeSeconds: 1560, distanceMeters: 5_000, kadWon: 0 },
+    { id: "trophy-4", eventName: "Weekend Warrior", eventType: "Weekend Warrior", date: new Date(now - 12 * day).toISOString(), position: 87, totalRunners: 134, timeSeconds: 3840, distanceMeters: 10_000, kadWon: 0 },
+  ];
+}
+
+function trophyMedal(pos: number): string {
+  if (pos === 1) return "\u{1F947}";
+  if (pos === 2) return "\u{1F948}";
+  if (pos === 3) return "\u{1F949}";
+  return "\u{1F3C5}";
+}
+
+function positionStr(pos: number): string {
+  if (pos === 1) return "1st";
+  if (pos === 2) return "2nd";
+  if (pos === 3) return "3rd";
+  return `${pos}th`;
+}
+
+function fmtTrophyDate(iso: string): string {
+  const d = new Date(iso);
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+}
 
 function fmtTotalTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -44,12 +97,20 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [unit, setUnit] = useState<"km" | "mi">("km");
+  const [trophies, setTrophies] = useState<Trophy[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("kadence_profile_name");
     if (saved) setProfileName(saved);
     const savedUnit = localStorage.getItem("kadence_unit");
     if (savedUnit === "mi") setUnit("mi");
+
+    let loaded = loadTrophies();
+    if (loaded.length === 0 && isDemoMode()) {
+      loaded = buildDemoTrophies();
+      localStorage.setItem(TROPHIES_KEY, JSON.stringify(loaded));
+    }
+    setTrophies(loaded);
   }, []);
 
   const avatarLetter = profileName
@@ -366,6 +427,81 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Trophy Cabinet */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+            <span style={{ fontSize: 20, fontWeight: 600, color: "#FFFFFF" }}>Trophy Cabinet</span>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+              {trophies.length} race{trophies.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {trophies.length === 0 ? (
+            <div style={{
+              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
+              borderRadius: 16, padding: "32px 16px", textAlign: "center",
+            }}>
+              <KIcon name="route" size={32} color="rgba(255,255,255,0.2)" />
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 12 }}>No races yet</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>
+                Enter a Flash Run to earn trophies
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+                {[
+                  { value: String(trophies.length), label: "Races entered" },
+                  { value: String(trophies.filter(t => t.position <= 3).length), label: "Podium finishes" },
+                  { value: positionStr(Math.min(...trophies.map(t => t.position))), label: "Best finish" },
+                ].map((s) => (
+                  <div key={s.label} style={{
+                    background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
+                    borderRadius: 16, padding: 12,
+                  }}>
+                    <div style={{
+                      fontSize: 24, fontWeight: 700, color: "#FFFFFF",
+                      letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums",
+                    }}>
+                      {s.value}
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
+                      {s.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {trophies.slice(0, 10).map((t) => (
+                <div key={t.id} style={{
+                  background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
+                  borderRadius: 16, padding: 16, marginBottom: 8,
+                  display: "flex", alignItems: "center", gap: 14,
+                }}>
+                  <span style={{ fontSize: 28 }}>{trophyMedal(t.position)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#FFFFFF" }}>{t.eventName}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                      {fmtTrophyDate(t.date)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: 14, color: "#FFFFFF" }}>
+                      {positionStr(t.position)} / {t.totalRunners}
+                    </div>
+                    <div style={{
+                      fontSize: 13, marginTop: 2, fontWeight: 600,
+                      color: t.kadWon > 0 ? "#E0F479" : "rgba(255,255,255,0.4)",
+                    }}>
+                      {t.kadWon > 0 ? `+${t.kadWon} KAD` : "Finished"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Activity history link */}
