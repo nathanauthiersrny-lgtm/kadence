@@ -124,6 +124,28 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function getMondayOfWeek(): Date {
+  const d = new Date();
+  const dow = d.getDay();
+  d.setDate(d.getDate() - ((dow + 6) % 7));
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getUserWeekContribution(): { km: number; runCount: number } {
+  const monday = getMondayOfWeek();
+  try {
+    const raw = localStorage.getItem("kadence_runs");
+    if (!raw) return { km: 0, runCount: 0 };
+    const runs = JSON.parse(raw) as { date: string; distance: number }[];
+    const weekRuns = runs.filter(r => new Date(r.date) >= monday);
+    return {
+      km: weekRuns.reduce((s, r) => s + (r.distance / 1000), 0),
+      runCount: weekRuns.length,
+    };
+  } catch { return { km: 0, runCount: 0 }; }
+}
+
 // --- Auto-assign: compute suggested tier from recent run history ---
 
 function computeSuggestedTier(runs: RunEntry[]): CommunityTier | null {
@@ -135,6 +157,22 @@ function computeSuggestedTier(runs: RunEntry[]): CommunityTier | null {
   return avgPace < 420 && avgDist >= 5 ? "regular" : "starter";
 }
 
+// --- Weekly challenge rotation ---
+
+function getWeeklyChallenge(): Community["challenge"] {
+  const d = new Date();
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86_400_000 + jan1.getDay() + 1) / 7);
+  const rotation = week % 4;
+  switch (rotation) {
+    case 0: return { type: "collective_km", target: 50, label: "Group covers 50 km together", bonusKad: 10, bonusBaseUnits: 10_000_000 };
+    case 1: return { type: "min_runs", target: 3, label: "Everyone runs at least 3 times", bonusKad: 5, bonusBaseUnits: 5_000_000 };
+    case 2: return { type: "collective_km", target: 75, label: "Group covers 75 km together", bonusKad: 15, bonusBaseUnits: 15_000_000 };
+    case 3: return { type: "min_runs", target: 5, label: "Complete 5 runs as a group", bonusKad: 8, bonusBaseUnits: 8_000_000 };
+    default: return { type: "collective_km", target: 50, label: "Group covers 50 km together", bonusKad: 10, bonusBaseUnits: 10_000_000 };
+  }
+}
+
 // --- Deterministic fake group progress (stable per community + week) ---
 
 function seededRandom(seed: number): number {
@@ -144,21 +182,38 @@ function seededRandom(seed: number): number {
 
 function simulatedGroupKm(
   community: Community,
-  weekKey: string,
+  _weekKey: string,
   myKm: number,
 ): number {
   if (!isDemoMode()) return myKm;
-  const seed =
-    community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) +
-    weekKey.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const baseline = community.challenge.target * (0.45 + seededRandom(seed) * 0.2);
-  return Math.min(baseline + myKm, community.challenge.target * 1.5);
+  const dow = new Date().getDay();
+  const dayScales: Record<number, number> = {
+    1: 0.08, 2: 0.20, 3: 0.35, 4: 0.50, 5: 0.65, 6: 0.80, 0: 0.92,
+  };
+  const scale = dayScales[dow] ?? 0.5;
+  const target = community.challenge.target;
+  const simulated = target * scale;
+  const total = simulated + myKm;
+  if (myKm === 0 && total >= target) return target * 0.99;
+  return Math.min(total, target * 1.5);
 }
 
 // --- Auto-generated activity feed ---
 
 const ROAD_NAMES = ["Alex", "Sam", "Jordan", "Casey", "Morgan", "Riley", "Quinn", "Taylor", "Drew", "Avery"];
 const TRAIL_NAMES = ["Blake", "Sage", "River", "Cedar", "Wren", "Scout", "Ash", "Forest"];
+
+function formatFeedTime(hoursAgo: number): string {
+  if (hoursAgo < 1) return `${Math.round(hoursAgo * 60)}m ago`;
+  if (hoursAgo < 24) return `${Math.round(hoursAgo)}h ago`;
+  const entryDate = new Date(Date.now() - hoursAgo * 3_600_000);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  if (entryDate >= yesterdayStart && entryDate < todayStart) return "Yesterday";
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][entryDate.getDay()];
+}
 
 function generateFeed(community: Community, myKm: number): FeedMessage[] {
   const messages: FeedMessage[] = [];
@@ -175,6 +230,7 @@ function generateFeed(community: Community, myKm: number): FeedMessage[] {
 
   const names = community.type === "trail" ? TRAIL_NAMES : ROAD_NAMES;
   const seed = community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const daySeed = todayStr().split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 
   const templates = [
     (n: string, km: string) => `${n} ran ${km} km`,
@@ -183,12 +239,13 @@ function generateFeed(community: Community, myKm: number): FeedMessage[] {
     (n: string, km: string) => `${n} smashed ${km} km this morning`,
   ];
 
-  for (let i = 0; i < 6; i++) {
-    const name = names[Math.floor(seededRandom(seed + i) * names.length)];
-    const km = (2 + seededRandom(seed + i * 3) * 8).toFixed(1);
-    const minsAgo = Math.floor(seededRandom(seed + i * 7) * 240 + 5);
-    const time = minsAgo < 60 ? `${minsAgo}m ago` : `${Math.floor(minsAgo / 60)}h ago`;
-    const tpl = templates[Math.floor(seededRandom(seed + i * 11) * templates.length)];
+  const hoursOffsets = [2, 4, 6, 18, 22, 36, 60];
+
+  for (let i = 0; i < 7; i++) {
+    const name = names[Math.floor(seededRandom(seed + i + daySeed) * names.length)];
+    const km = (2 + seededRandom(seed + i * 3 + daySeed) * 8).toFixed(1);
+    const time = formatFeedTime(hoursOffsets[i]);
+    const tpl = templates[Math.floor(seededRandom(seed + i * 11 + daySeed) * templates.length)];
 
     messages.push({ id: `feed-${i}`, text: tpl(name, km), time });
   }
@@ -294,30 +351,43 @@ export function useCommunity(): CommunityState {
     });
   }, []);
 
-  const joinedCommunity = COMMUNITIES.find((c) => c.id === joinedId) ?? null;
+  const weeklyChallenge = getWeeklyChallenge();
+  const userContrib = getUserWeekContribution();
+
+  const baseCommunity = COMMUNITIES.find((c) => c.id === joinedId) ?? null;
+  const joinedCommunity = baseCommunity
+    ? { ...baseCommunity, challenge: weeklyChallenge }
+    : null;
+
   const suggestedTier = computeSuggestedTier(runHistory);
 
   const collectiveKm = joinedCommunity
-    ? simulatedGroupKm(joinedCommunity, weekProgress.weekKey, weekProgress.myKm)
+    ? simulatedGroupKm(joinedCommunity, weekProgress.weekKey, userContrib.km)
     : 0;
 
   let challengeComplete = false;
   if (joinedCommunity && !weekProgress.claimed) {
     if (joinedCommunity.challenge.type === "min_runs") {
-      challengeComplete = weekProgress.myRunCount >= joinedCommunity.challenge.target;
+      challengeComplete = userContrib.runCount >= joinedCommunity.challenge.target;
     } else {
       challengeComplete = collectiveKm >= joinedCommunity.challenge.target;
     }
   }
 
-  const feed = joinedCommunity ? generateFeed(joinedCommunity, weekProgress.myKm) : [];
+  const feed = joinedCommunity ? generateFeed(joinedCommunity, userContrib.km) : [];
+
+  const effectiveWeekProgress: WeekProgress = {
+    ...weekProgress,
+    myRunCount: userContrib.runCount,
+    myKm: userContrib.km,
+  };
 
   return {
     communities: COMMUNITIES,
     joinedCommunity,
     suggestedTier,
     runCount: runHistory.length,
-    weekProgress,
+    weekProgress: effectiveWeekProgress,
     feed,
     collectiveKm,
     challengeComplete,
