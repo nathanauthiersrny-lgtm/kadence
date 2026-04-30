@@ -12,8 +12,8 @@ export type Badge = {
 
 const ALL_BADGES: Omit<Badge, "earned">[] = [
   { id: "first-run",     icon: "play",    label: "First Step",    desc: "Complete your first run" },
-  { id: "streak-3",      icon: "flame",   label: "On Fire",       desc: "3-day streak" },
-  { id: "streak-7",      icon: "crown",   label: "7-Day Streak",  desc: "7 consecutive days" },
+  { id: "streak-3",      icon: "flame",   label: "On Fire",       desc: "3-week streak" },
+  { id: "streak-7",      icon: "crown",   label: "7-Week Streak", desc: "7-week streak" },
   { id: "club-5k",       icon: "route",   label: "5K Club",       desc: "Run 5 km in one session" },
   { id: "sub-30",        icon: "bolt",    label: "Sub-30",        desc: "5 km under 30 minutes" },
   { id: "club-10k",      icon: "medal",   label: "10K Club",      desc: "Run 10 km in one session" },

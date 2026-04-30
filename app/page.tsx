@@ -16,6 +16,7 @@ import { CommunityScreen } from "./components/community-screen";
 import { FlashRunScreen } from "./components/flash-run-screen";
 import { ActivityScreen } from "./components/activity-screen";
 import { ProfileScreen } from "./components/profile-screen";
+import { RunGoalModal } from "./components/run-goal-modal";
 import { useCommunity } from "./lib/hooks/use-community";
 import { useFlashRun, getActiveBoost, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
 import { useRunHistory } from "./lib/hooks/use-run-history";
@@ -45,6 +46,8 @@ function saveTrophy(trophy: Trophy) {
   } catch { /* ignore */ }
 }
 
+type RunGoal = { distanceKm: number; timeMinutes: number };
+
 type View = "home" | "running" | "post-run" | "community" | "flash-runs" | "history" | "profile";
 
 type RunSnapshot = {
@@ -69,6 +72,8 @@ export default function Page() {
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [activeFlashRun, setActiveFlashRun] = useState<FlashRun | null>(null);
+  const [showGoalPopup, setShowGoalPopup] = useState(false);
+  const [runGoal, setRunGoal] = useState<RunGoal | null>(null);
 
   const { wallet, signer } = useWallet();
   const { send } = useSendTransaction();
@@ -83,6 +88,18 @@ export default function Page() {
   const handleStart = useCallback(() => {
     setClaimed(false);
     setActiveFlashRun(null);
+    setShowGoalPopup(true);
+  }, []);
+
+  const handleGoalStart = useCallback((goal: RunGoal) => {
+    setRunGoal(goal);
+    setShowGoalPopup(false);
+    setView("running");
+  }, []);
+
+  const handleFreeRun = useCallback(() => {
+    setRunGoal(null);
+    setShowGoalPopup(false);
     setView("running");
   }, []);
 
@@ -149,6 +166,7 @@ export default function Page() {
 
   const handleCancel = useCallback(() => {
     setActiveFlashRun(null);
+    setRunGoal(null);
     setView("home");
   }, []);
 
@@ -225,6 +243,7 @@ export default function Page() {
   const handleBack = useCallback(() => {
     setRunSnapshot(null);
     setActiveFlashRun(null);
+    setRunGoal(null);
     setView("home");
   }, []);
 
@@ -270,7 +289,7 @@ export default function Page() {
         )}
 
         {view === "running" && (
-          <ActiveRunScreen onEnd={handleEnd} onCancel={handleCancel} flashRun={activeFlashRun ?? undefined} />
+          <ActiveRunScreen onEnd={handleEnd} onCancel={handleCancel} flashRun={activeFlashRun ?? undefined} runGoal={runGoal ?? undefined} />
         )}
 
         {view === "community" && (
@@ -291,6 +310,10 @@ export default function Page() {
             claimed={claimed}
             raceResult={runSnapshot.raceResult}
           />
+        )}
+
+        {showGoalPopup && (
+          <RunGoalModal onStart={handleGoalStart} onFreeRun={handleFreeRun} />
         )}
       </div>
     </div>

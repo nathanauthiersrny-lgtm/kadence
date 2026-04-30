@@ -88,13 +88,15 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
     if (hasApplied.current) return;
     hasApplied.current = true;
     recordRun();
+    const stored = JSON.parse(localStorage.getItem("kad_streak") ?? "{}");
+    const currentStreak: number = stored.streak ?? 0;
     completeQuest(distKm);
     addXP(xpEarned);
     const newTotal = xpBefore + xpEarned;
     setLevelAfter(Math.max(1, Math.floor(newTotal / 100) + 1));
     setXpAfter(newTotal % 100);
     const totalRuns = incrementTotalRuns();
-    const unlocked = checkAndUnlock({ distanceKm: distKm, durationSeconds, streak: streak + 1, reachedSprint, totalRuns });
+    const unlocked = checkAndUnlock({ distanceKm: distKm, durationSeconds, streak: currentStreak, reachedSprint, totalRuns });
     setNewBadges(unlocked);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

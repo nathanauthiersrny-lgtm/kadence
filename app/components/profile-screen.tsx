@@ -122,7 +122,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
 
   const { data: kadBalance } = useKadBalance(address || undefined);
   const { level, levelXP, levelTitle } = useXP();
-  const { streak, multiplier } = useStreak();
+  const { streak, multiplier, runsThisWeek, weeklyGoal } = useStreak();
   const { badges } = useBadges();
   const { runs, totalDistKm, totalRuns } = useRunHistory();
 
@@ -369,7 +369,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               {streak}
             </span>
             <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-              {streak === 1 ? "day" : "days"}
+              {streak === 1 ? "week" : "weeks"}
             </span>
             {multiplier > 1 && (
               <span style={{ marginLeft: "auto", fontSize: 11, color: "#E0F479", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
@@ -381,7 +381,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
             {Array.from({ length: 7 }).map((_, i) => (
               <div key={i} style={{
                 flex: 1, height: 6, borderRadius: 3,
-                background: i < Math.min(streak, 7) ? "#E0F479" : "rgba(224,244,121,0.15)",
+                background: i < runsThisWeek ? "#E0F479" : i < weeklyGoal ? "rgba(224,244,121,0.3)" : "rgba(224,244,121,0.1)",
               }} />
             ))}
           </div>

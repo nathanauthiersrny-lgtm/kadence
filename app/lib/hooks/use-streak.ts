@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-/** Multiplier thresholds: [minStreak, multiplier] */
 const MULTIPLIERS: [number, number][] = [
-  [30, 2.0],
-  [14, 1.6],
-  [7,  1.4],
-  [3,  1.2],
-  [1,  1.1],
+  [8,  2.0],
+  [4,  1.6],
+  [2,  1.4],
+  [1,  1.2],
   [0,  1.0],
 ];
 
@@ -19,40 +17,64 @@ function multiplierForStreak(streak: number) {
   return 1.0;
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-}
-function yesterdayStr() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
+function getWeekStartStr(date: Date = new Date()): string {
+  const d = new Date(date);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - ((dow + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
 
-const STORAGE_KEY = "kad_streak";
+function getPreviousWeekStartStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  return getWeekStartStr(d);
+}
 
-type Stored = { streak: number; lastRunDate: string };
+const STORAGE_KEY = "kad_streak";
+const WEEKLY_GOAL = 2;
+
+type Stored = { streak: number; weekStart: string; runsThisWeek: number };
+
+function evaluateWeekTransition(stored: Stored, currentWeek: string): Stored {
+  const prevWeek = getPreviousWeekStartStr();
+  if (stored.weekStart === prevWeek) {
+    const newStreak = stored.runsThisWeek >= WEEKLY_GOAL ? stored.streak + 1 : 0;
+    return { streak: newStreak, weekStart: currentWeek, runsThisWeek: 0 };
+  }
+  return { streak: 0, weekStart: currentWeek, runsThisWeek: 0 };
+}
 
 export type StreakState = {
   streak: number;
   multiplier: number;
+  runsThisWeek: number;
+  weeklyGoal: number;
   recordRun: () => void;
 };
 
 export function useStreak(): StreakState {
   const [streak, setStreak] = useState(0);
+  const [runsThisWeek, setRunsThisWeek] = useState(0);
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     try {
-      const { streak: s, lastRunDate }: Stored = JSON.parse(raw);
-      // If last run was yesterday or today, streak is still valid
-      if (lastRunDate === todayStr() || lastRunDate === yesterdayStr()) {
-        setStreak(s);
-      } else {
-        // Gap > 1 day — reset
-        setStreak(0);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ streak: 0, lastRunDate: "" }));
+      const parsed = JSON.parse(raw);
+      if ("lastRunDate" in parsed && !("weekStart" in parsed)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ streak: 0, weekStart: "", runsThisWeek: 0 }));
+        return;
+      }
+      const stored: Stored = parsed;
+      const currentWeek = getWeekStartStr();
+      if (stored.weekStart === currentWeek) {
+        setStreak(stored.streak);
+        setRunsThisWeek(stored.runsThisWeek);
+      } else if (stored.weekStart) {
+        const resolved = evaluateWeekTransition(stored, currentWeek);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(resolved));
+        setStreak(resolved.streak);
+        setRunsThisWeek(resolved.runsThisWeek);
       }
     } catch {
       // ignore parse errors
@@ -61,22 +83,29 @@ export function useStreak(): StreakState {
 
   const recordRun = useCallback(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
-    let current = 0;
+    const currentWeek = getWeekStartStr();
+    let current: Stored = { streak: 0, weekStart: currentWeek, runsThisWeek: 0 };
+
     if (raw) {
       try {
-        const { streak: s, lastRunDate }: Stored = JSON.parse(raw);
-        const today = todayStr();
-        if (lastRunDate === today) {
-          // Already ran today — don't increment
-          return;
+        const parsed = JSON.parse(raw);
+        if ("weekStart" in parsed) {
+          current = parsed as Stored;
         }
-        current = lastRunDate === yesterdayStr() ? s : 0;
       } catch { /* ignore */ }
     }
-    const next = current + 1;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ streak: next, lastRunDate: todayStr() }));
-    setStreak(next);
+
+    if (current.weekStart === currentWeek) {
+      current.runsThisWeek += 1;
+    } else {
+      const resolved = evaluateWeekTransition(current, currentWeek);
+      current = { ...resolved, runsThisWeek: 1 };
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    setStreak(current.streak);
+    setRunsThisWeek(current.runsThisWeek);
   }, []);
 
-  return { streak, multiplier: multiplierForStreak(streak), recordRun };
+  return { streak, multiplier: multiplierForStreak(streak), runsThisWeek, weeklyGoal: WEEKLY_GOAL, recordRun };
 }

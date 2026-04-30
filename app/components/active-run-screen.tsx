@@ -15,13 +15,16 @@ function isSprint(kmh: number) {
   return kmh >= 16;
 }
 
+type RunGoal = { distanceKm: number; timeMinutes: number };
+
 type Props = {
   onEnd: (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean; routeCoords: LatLon[] }) => void;
   onCancel: () => void;
   flashRun?: FlashRun;
+  runGoal?: RunGoal;
 };
 
-export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
+export function ActiveRunScreen({ onEnd, onCancel, flashRun, runGoal }: Props) {
   const { isRunning, isPaused, distanceMeters, durationSeconds, speedKmh, route, geoError, startRun, pauseRun, resumeRun, stopRun } = useRunTracker();
   const { multiplier } = useStreak();
 
@@ -64,6 +67,9 @@ export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
   const paceMm = Math.floor(paceSecPerKm / 60);
   const paceSs = Math.round(paceSecPerKm % 60).toString().padStart(2, "0");
   const paceDisplay = distanceMeters > 10 ? `${paceMm}:${paceSs}` : "—";
+  const ghostDelta = runGoal
+    ? distanceMeters - ((runGoal.distanceKm * 1000) / (runGoal.timeMinutes * 60)) * durationSeconds
+    : null;
   const kadEarned = distKm * multiplier;
 
   return (
@@ -79,6 +85,10 @@ export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
         {flashRun ? (
           <KPill pulse icon={<KIcon name="trophy" size={11} color="#E0F479" />}>
             RACE · {(flashRun.distanceM / 1000).toFixed(0)} km
+          </KPill>
+        ) : runGoal ? (
+          <KPill pulse icon={<KIcon name="target" size={11} color="#E0F479" />}>
+            GOAL · {runGoal.distanceKm} km
           </KPill>
         ) : (
           <KPill pulse icon={<KIcon name="target" size={11} color="#E0F479" />}>GPS</KPill>
@@ -227,6 +237,43 @@ export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
             </div>
           ))}
         </div>
+
+        {/* Ghost pacer */}
+        {runGoal && ghostDelta !== null && (
+          <div style={{
+            background: "#1A1A1A",
+            border: `1px solid ${ghostDelta >= 0 ? "rgba(224,244,121,0.3)" : "rgba(239,68,68,0.3)"}`,
+            borderRadius: 16, padding: "14px 16px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <div>
+              <div style={{
+                fontSize: 10, textTransform: "uppercase", letterSpacing: "0.18em",
+                fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 4,
+              }}>
+                Ghost pacer
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                {runGoal.distanceKm} km in {runGoal.timeMinutes} min
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{
+                fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                color: ghostDelta >= 0 ? "#E0F479" : "#ef4444",
+                lineHeight: 1,
+              }}>
+                {ghostDelta >= 0 ? "+" : ""}{Math.round(ghostDelta)} m
+              </div>
+              <div style={{
+                fontSize: 11, marginTop: 2,
+                color: ghostDelta >= 0 ? "rgba(224,244,121,0.6)" : "rgba(239,68,68,0.6)",
+              }}>
+                {ghostDelta >= 0 ? "Ahead" : "Behind"}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* GPS error */}
         {geoError && (

@@ -20,7 +20,7 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
   const address = wallet?.account.address;
   const { data: kadBalance } = useKadBalance(address);
   const { level, levelTitle } = useXP();
-  const { streak, multiplier } = useStreak();
+  const { streak, multiplier, runsThisWeek, weeklyGoal } = useStreak();
   const { quest, progressKm, completed, timeUntilReset } = useQuests();
   const { joinedCommunity, weekProgress, collectiveKm, challengeComplete } = useCommunity();
   const { demo, toggleDemo } = useDemoMode();
@@ -284,7 +284,7 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
               <span style={{ fontSize: 32, fontWeight: 700, color: "#E0F479", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.04em", lineHeight: 1 }}>
                 {streak}
               </span>
-              <span style={{ fontSize: 11, color: "rgba(224,244,121,0.6)", textTransform: "uppercase", letterSpacing: "0.1em" }}>days</span>
+              <span style={{ fontSize: 11, color: "rgba(224,244,121,0.6)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{streak === 1 ? "week" : "weeks"}</span>
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 14, lineHeight: 1.3 }}>
               Lv {level} · <span style={{ color: "rgba(255,255,255,0.75)" }}>{levelTitle}</span>
