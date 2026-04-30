@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isDemoMode } from "./use-demo-mode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -306,7 +306,7 @@ export function useFlashRun(): FlashRunHookState {
     setCustomEvents(loadCustomEvents());
   }, []);
 
-  const events = [...customEvents, ...seededEvents];
+  const events = useMemo(() => [...customEvents, ...seededEvents], [customEvents, seededEvents]);
 
   const joinEvent = useCallback((id: string) => {
     setJoinedIds((prev) => {

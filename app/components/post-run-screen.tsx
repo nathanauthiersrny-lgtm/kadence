@@ -38,6 +38,11 @@ type RunSnapshot = {
   distanceMeters: number;
   durationSeconds: number;
   reachedSprint: boolean;
+  baseKAD: number;
+  boostMultiplier: number;
+  boostName: string | null;
+  underdogMultiplier: number;
+  finalKAD: number;
 };
 
 type Props = {
@@ -54,14 +59,20 @@ type Props = {
 const SPARKLE_POS = [[140, 200], [280, 160], [100, 320], [320, 320]] as const;
 
 export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaiming, claimed, raceResult }: Props) {
-  const { distanceMeters, durationSeconds, reachedSprint } = snapshot;
+  const { distanceMeters, durationSeconds, reachedSprint, baseKAD, boostMultiplier: boostMult, underdogMultiplier: underdogMult, finalKAD } = snapshot;
   const distKm = distanceMeters / 1000;
   const paceSecPerKm = distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
   const paceMinPerKm = paceSecPerKm / 60;
   const calsBurned = Math.round(distKm * 70);
   const { stars, label: rarityLabel } = rarity(distKm, paceMinPerKm);
-  const kadEarned = distKm * multiplier;
   const xpEarned = Math.round(distKm * 10 * multiplier);
+
+  const hasMultipliers = multiplier > 1 || boostMult > 1 || underdogMult > 1;
+  const afterStreak = baseKAD * multiplier;
+  const streakContrib = afterStreak - baseKAD;
+  const afterBoost = afterStreak * boostMult;
+  const boostContrib = afterBoost - afterStreak;
+  const underdogContrib = finalKAD - afterBoost;
 
   const { level: levelBefore, levelXP: xpBefore, levelTitle, nextTitle, addXP } = useXP();
   const { streak, recordRun } = useStreak();
@@ -148,7 +159,7 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
             textShadow: "0 0 32px rgba(224,244,121,0.4)",
             marginTop: 6,
           }}>
-            {kadEarned.toFixed(2)}
+            {finalKAD.toFixed(2)}
           </div>
           <div style={{ fontSize: 14, color: "#E0F479", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase" }}>KAD</div>
           <div style={{ marginTop: 10, display: "flex", justifyContent: "center", gap: 4 }}>
@@ -180,6 +191,44 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
             durationSec={raceResult.durationSec}
           />
         ))}
+
+        {/* KAD breakdown */}
+        {hasMultipliers && (
+          <div style={{ padding: 16, background: "#1A1A1A", borderRadius: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+              <span>Base</span>
+              <span style={{ color: "#fff" }}>{baseKAD.toFixed(2)} KAD</span>
+            </div>
+            {multiplier > 1 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                <span>Streak ({multiplier}x)</span>
+                <span style={{ color: "#E0F479" }}>+{streakContrib.toFixed(2)} KAD</span>
+              </div>
+            )}
+            {boostMult > 1 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                <span>Boost ({boostMult}x)</span>
+                <span style={{ color: "#E0F479" }}>+{boostContrib.toFixed(2)} KAD</span>
+              </div>
+            )}
+            {underdogMult > 1 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                <span>Underdog ({underdogMult}x)</span>
+                <span style={{ color: "#E0F479" }}>+{underdogContrib.toFixed(2)} KAD</span>
+              </div>
+            )}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700 }}>
+              <span>Total</span>
+              <span style={{ color: "#E0F479" }}>{finalKAD.toFixed(2)} KAD</span>
+            </div>
+            {underdogMult > 1 && raceResult && (
+              <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
+                You finished {positionSuffix(raceResult.position)} — every finish counts. 🔥
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Level + XP bar */}
         <div style={{ padding: 14, borderRadius: 18, background: "linear-gradient(135deg, rgba(224,244,121,0.12) 0%, rgba(63,185,119,0.06) 100%)", border: "1px solid rgba(224,244,121,0.3)" }}>
@@ -259,7 +308,7 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
           {claimed ? (
             <><KIcon name="check" size={16} color="#3FB977" /> Claimed</>
           ) : isClaiming ? "Recording…" : (
-            <><KIcon name="sparkle" size={16} color="#0D0D0D" fill="#0D0D0D" stroke={0} /> Claim {kadEarned.toFixed(2)} KAD</>
+            <><KIcon name="sparkle" size={16} color="#0D0D0D" fill="#0D0D0D" stroke={0} /> Claim {finalKAD.toFixed(2)} KAD</>
           )}
         </button>
 

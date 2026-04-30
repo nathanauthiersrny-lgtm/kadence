@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LatLon } from "./use-run-tracker";
 import { isDemoMode } from "./use-demo-mode";
+import type { ChainRun } from "./use-chain-sync";
 
 export type RunEntry = {
   id: string;
@@ -15,6 +16,7 @@ export type RunEntry = {
   txSignature: string | null;
   xpEarned: number;
   badgeEarned: string | null;
+  source?: "local" | "chain";
 };
 
 export const RUNS_KEY = "kadence_runs";
@@ -86,6 +88,7 @@ function migrate(entry: Record<string, unknown>): RunEntry {
     txSignature: (entry.txSignature as string) ?? null,
     xpEarned: (entry.xpEarned as number) ?? 0,
     badgeEarned: (entry.badgeEarned as string) ?? null,
+    source: (entry.source as "local" | "chain") ?? undefined,
   };
 }
 
@@ -118,12 +121,57 @@ function sevenDaysAgo(): Date {
   return d;
 }
 
-export function useRunHistory() {
+function mergeChainRuns(local: RunEntry[], chain: ChainRun[]): RunEntry[] {
+  const knownSigs = new Set(
+    local.filter((r) => r.txSignature).map((r) => r.txSignature!),
+  );
+
+  const newRuns: RunEntry[] = [];
+  for (const cr of chain) {
+    if (knownSigs.has(cr.txSignature)) continue;
+    const distKm = cr.distance / 1000;
+    const pace = cr.distance > 0 ? (cr.duration / cr.distance) * 1000 : 0;
+    newRuns.push({
+      id: `chain-${cr.txSignature.slice(0, 12)}`,
+      date: new Date(cr.blockTime * 1000).toISOString(),
+      distance: cr.distance,
+      duration: cr.duration,
+      pace,
+      kadEarned: Math.round(distKm * 100) / 100,
+      routeCoords: [],
+      txSignature: cr.txSignature,
+      xpEarned: Math.round(distKm * 10),
+      badgeEarned: null,
+      source: "chain",
+    });
+  }
+
+  if (newRuns.length === 0) return local;
+
+  const merged = [...local, ...newRuns].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
+  localStorage.setItem(RUNS_KEY, JSON.stringify(merged));
+  return merged;
+}
+
+export function useRunHistory(chainRuns?: ChainRun[]) {
   const [runs, setRuns] = useState<RunEntry[]>([]);
+  const mergedRef = useRef(false);
 
   useEffect(() => {
     setRuns(load());
   }, []);
+
+  useEffect(() => {
+    if (!chainRuns || chainRuns.length === 0 || isDemoMode()) return;
+    setRuns((prev) => {
+      const merged = mergeChainRuns(prev, chainRuns);
+      if (merged === prev) return prev;
+      mergedRef.current = true;
+      return merged;
+    });
+  }, [chainRuns]);
 
   const saveRun = useCallback((entry: Omit<RunEntry, "id">): string => {
     const id = `run-${Date.now()}`;

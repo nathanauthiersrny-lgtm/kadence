@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRunTracker, type LatLon } from "../lib/hooks/use-run-tracker";
 import { useStreak } from "../lib/hooks/use-streak";
-import { type FlashRun } from "../lib/hooks/use-flash-run";
+import { type FlashRun, getActiveBoost, getPlayerPosition } from "../lib/hooks/use-flash-run";
 import { KPill, KIcon } from "./ui/primitives";
 import type { RunResult } from "../lib/hooks/use-run-tracker";
 
@@ -28,6 +28,15 @@ export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
   const [started, setStarted] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const reachedSprintRef = useRef(false);
+
+  const [activeBoost, setActiveBoost] = useState(getActiveBoost);
+  useEffect(() => {
+    const t = setInterval(() => setActiveBoost(getActiveBoost()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const racePosition = flashRun ? getPlayerPosition(flashRun, durationSeconds) : 0;
+  const isUnderdog = flashRun != null && racePosition >= 4;
 
   useEffect(() => {
     if (!isRunning) return;
@@ -89,6 +98,44 @@ export function ActiveRunScreen({ onEnd, onCancel, flashRun }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Boost / race / underdog pills */}
+      {(!flashRun && activeBoost) && (
+        <div style={{
+          marginTop: 10,
+          padding: "6px 12px",
+          background: "rgba(224,244,121,0.15)",
+          border: "1px solid rgba(224,244,121,0.4)",
+          borderRadius: 50,
+          fontSize: 13, fontWeight: 400, color: "#E0F479",
+          alignSelf: "flex-start",
+        }}>
+          ☀️ {activeBoost.multiplier}x BOOST
+        </div>
+      )}
+      {flashRun && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+          <div style={{
+            padding: "6px 12px",
+            background: "rgba(224,244,121,0.15)",
+            border: "1px solid rgba(224,244,121,0.4)",
+            borderRadius: 50,
+            fontSize: 13, fontWeight: 400, color: "#E0F479",
+            alignSelf: "flex-start",
+          }}>
+            🏆 RACE ACTIVE · {flashRun.name}
+          </div>
+          {isUnderdog && (
+            <div style={{
+              padding: "4px 12px",
+              fontSize: 12, color: "rgba(224,244,121,0.6)",
+              alignSelf: "flex-start",
+            }}>
+              🔥 Underdog boost active
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Cancel confirmation dialog */}
       {showCancelConfirm && (

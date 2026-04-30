@@ -41,9 +41,11 @@ function fmtPace(paceSecPerKm: number): string {
 type Props = {
   onBack: () => void;
   onStart: () => void;
+  syncing?: boolean;
+  onSync?: () => void;
 };
 
-export function ActivityScreen({ onBack, onStart }: Props) {
+export function ActivityScreen({ onBack, onStart, syncing, onSync }: Props) {
   const {
     runs,
     totalKad, totalDistKm, totalRuns,
@@ -78,10 +80,35 @@ export function ActivityScreen({ onBack, onStart }: Props) {
           <KIcon name="chevron" size={15} color="rgba(255,255,255,0.5)" style={{ transform: "rotate(180deg)" }} />
           Back
         </button>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 20 }}>
           <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em" }}>Activity</div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-            {totalRuns} {totalRuns === 1 ? "run" : "runs"}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {onSync && (
+              <button
+                onClick={onSync}
+                disabled={syncing}
+                style={{
+                  background: "none", border: "1px solid rgba(255,255,255,0.16)",
+                  borderRadius: 8, padding: "4px 10px", cursor: syncing ? "default" : "pointer",
+                  color: syncing ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.6)",
+                  fontSize: 11, fontFamily: "inherit", fontWeight: 600,
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  opacity: syncing ? 0.6 : 1,
+                }}
+              >
+                <span style={{
+                  display: "inline-block",
+                  animation: syncing ? "spin 1s linear infinite" : "none",
+                  fontSize: 13,
+                }}>
+                  ↻
+                </span>
+                {syncing ? "Syncing…" : "Sync"}
+              </button>
+            )}
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+              {totalRuns} {totalRuns === 1 ? "run" : "runs"}
+            </span>
           </div>
         </div>
       </div>
@@ -258,10 +285,19 @@ function RunCard({ run, onTap }: { run: RunEntry; onTap: () => void }) {
         </div>
       </div>
 
-      {/* Bottom: mini map or lime divider */}
+      {/* Bottom: mini map, chain badge, or lime divider */}
       {hasRoute ? (
         <div style={{ borderRadius: 8, overflow: "hidden" }}>
           <MiniRunMap coords={run.routeCoords} />
+        </div>
+      ) : run.source === "chain" ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "8px 0 2px",
+          fontSize: 11, color: "rgba(224,244,121,0.6)",
+        }}>
+          <KIcon name="shield" size={13} color="rgba(224,244,121,0.6)" />
+          Synced from Solana
         </div>
       ) : (
         <div style={{ height: 1, background: "rgba(224,244,121,0.25)" }} />
@@ -328,12 +364,24 @@ function RunDetailView({ run, onBack }: { run: RunEntry; onBack: () => void }) {
         ) : (
           <div style={{
             width: "100%", height: "100%", background: "#1A1A1A",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            border: "1px solid rgba(255,255,255,0.16)", borderRadius: 16, gap: 8,
           }}>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
-              Route not recorded
-            </span>
+            {run.source === "chain" ? (
+              <>
+                <KIcon name="shield" size={28} color="rgba(224,244,121,0.5)" />
+                <span style={{ fontSize: 14, color: "rgba(224,244,121,0.6)", fontWeight: 600 }}>
+                  Synced from Solana
+                </span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+                  Route not available on this device
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
+                Route not recorded
+              </span>
+            )}
           </div>
         )}
       </div>

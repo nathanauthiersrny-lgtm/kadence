@@ -1,0 +1,10 @@
+# Anchor / Rust build artifacts (5+ GB)
+anchor/target/
+anchor/.anchor/
+
+# Solana local validator
+test-ledger/
+
+# IDE / AI tool configs
+.claude/
+.vscode/

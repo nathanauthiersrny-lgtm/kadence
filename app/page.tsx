@@ -19,6 +19,7 @@ import { ProfileScreen } from "./components/profile-screen";
 import { useCommunity } from "./lib/hooks/use-community";
 import { useFlashRun, getActiveBoost, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
 import { useRunHistory } from "./lib/hooks/use-run-history";
+import { useChainSync } from "./lib/hooks/use-chain-sync";
 import type { RunResult, LatLon } from "./lib/hooks/use-run-tracker";
 
 type Trophy = {
@@ -76,7 +77,8 @@ export default function Page() {
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { addRunContribution } = useCommunity();
   const { submitResult } = useFlashRun();
-  const { saveRun, updateRunTx } = useRunHistory();
+  const { chainRuns, syncing: chainSyncing, syncNow: chainSyncNow } = useChainSync(wallet?.account.address);
+  const { saveRun, updateRunTx } = useRunHistory(chainRuns);
 
   const handleStart = useCallback(() => {
     setClaimed(false);
@@ -260,7 +262,7 @@ export default function Page() {
         )}
 
         {view === "history" && (
-          <ActivityScreen onBack={() => setView("home")} onStart={handleStart} />
+          <ActivityScreen onBack={() => setView("home")} onStart={handleStart} syncing={chainSyncing} onSync={chainSyncNow} />
         )}
 
         {view === "profile" && (
