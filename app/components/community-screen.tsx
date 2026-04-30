@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useCommunity, COMMUNITIES, type Community } from "../lib/hooks/use-community";
+import { useSocialFeed } from "../lib/hooks/use-social-feed";
 import { useWallet } from "../lib/wallet/context";
 import { useSendTransaction } from "../lib/hooks/use-send-transaction";
 import { useKadBalance } from "../lib/hooks/use-kad-balance";
@@ -10,6 +11,7 @@ import { useCluster } from "./cluster-context";
 import { getClaimChallengeBonusInstructionAsync } from "../generated/kadence";
 import { parseTransactionError } from "../lib/errors";
 import { KCard, KButton, KIcon } from "./ui/primitives";
+import { MiniRunMap } from "./mini-run-map";
 
 type SubView = "browse" | "detail";
 type Props = { onBack: () => void };
@@ -166,12 +168,31 @@ function BrowseView({ onJoined }: { onJoined: () => void }) {
 
 // ─── Detail View ─────────────────────────────────────────────────────────────
 
+function formatTimeAgo(isoDate: string): string {
+  const ms = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 60) return `${Math.max(1, mins)}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function formatPaceCompact(secPerKm: number): string {
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function DetailView({ onBack, onLeave }: { onBack: () => void; onLeave: () => void }) {
   const { joinedCommunity, weekProgress, feed, collectiveKm, challengeComplete, leaveCommunity, markClaimed } = useCommunity();
   const { wallet, signer } = useWallet();
   const { send } = useSendTransaction();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { getExplorerUrl } = useCluster();
+  const { sharedRuns, fireRun, hasFired } = useSocialFeed(joinedCommunity?.id ?? null);
   const [isClaiming, setIsClaiming] = useState(false);
 
   const handleClaim = useCallback(async () => {
@@ -340,7 +361,7 @@ function DetailView({ onBack, onLeave }: { onBack: () => void; onLeave: () => vo
         {/* Activity feed */}
         <div>
           <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 10, padding: "0 4px" }}>Activity</div>
-          {feed.length === 0 ? (
+          {sharedRuns.length === 0 ? (
             <div style={{
               background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: 16, padding: "28px 16px", textAlign: "center",
@@ -349,34 +370,79 @@ function DetailView({ onBack, onLeave }: { onBack: () => void; onLeave: () => vo
                 No activity yet this week
               </div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-                Complete a run to contribute to the challenge
+                Complete a run and share it to the feed
               </div>
             </div>
           ) : (
-            <div style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden" }}>
-              {feed.map((msg, i) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 14px",
-                    borderTop: i ? "1px solid rgba(255,255,255,0.04)" : "none",
-                  }}
-                >
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                    background: avatarColors[i % avatarColors.length],
-                    color: avatarTextColors[i % avatarTextColors.length],
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 11, fontWeight: 700,
-                  }}>
-                    {msg.text.charAt(0)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {sharedRuns.map((run, i) => {
+                const fired = hasFired(run.id);
+                return (
+                  <div
+                    key={run.id}
+                    style={{
+                      background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 16, padding: 14,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                        background: avatarColors[i % avatarColors.length],
+                        color: avatarTextColors[i % avatarTextColors.length],
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 700,
+                      }}>
+                        {run.runnerName.charAt(0)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{run.runnerName}</span>
+                      </div>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>
+                        {formatTimeAgo(run.sharedAt)}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: 6, marginBottom: run.routeCoords.length >= 2 ? 10 : 0 }}>
+                      <span>{run.distanceKm.toFixed(2)} km</span>
+                      <span style={{ color: "rgba(255,255,255,0.2)" }}>&middot;</span>
+                      <span>{formatPaceCompact(run.paceSecPerKm)} /km</span>
+                      <span style={{ color: "rgba(255,255,255,0.2)" }}>&middot;</span>
+                      <span style={{ color: "#E0F479" }}>{run.kadEarned.toFixed(2)} KAD</span>
+                    </div>
+
+                    {run.routeCoords.length >= 2 && (
+                      <div style={{ borderRadius: 10, overflow: "hidden", marginBottom: 10, height: 120 }}>
+                        <MiniRunMap coords={run.routeCoords} />
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => fireRun(run.id)}
+                        style={{
+                          background: "none", border: "none", cursor: fired ? "default" : "pointer",
+                          display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
+                          borderRadius: 50,
+                        }}
+                      >
+                        <KIcon
+                          name="flame"
+                          size={16}
+                          color={fired ? "#E0F479" : "rgba(255,255,255,0.3)"}
+                          fill={fired ? "#E0F479" : "none"}
+                        />
+                        <span style={{
+                          fontSize: 12, fontWeight: 600,
+                          color: fired ? "#E0F479" : "rgba(255,255,255,0.35)",
+                        }}>
+                          {run.fireCount}
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                  <span style={{ flex: 1, fontSize: 12, color: msg.id === "my-run" ? "rgba(224,244,121,0.9)" : "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
-                    {msg.text}
-                  </span>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", flexShrink: 0, paddingTop: 1 }}>{msg.time}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -10,6 +10,7 @@ import { useBadges } from "../lib/hooks/use-badges";
 import { useRunHistory } from "../lib/hooks/use-run-history";
 import { isDemoMode } from "../lib/hooks/use-demo-mode";
 import { ellipsify } from "../lib/explorer";
+import { useSocialFeed } from "../lib/hooks/use-social-feed";
 import { KIcon } from "./ui/primitives";
 
 type Trophy = {
@@ -125,16 +126,20 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const { streak, multiplier, runsThisWeek, weeklyGoal } = useStreak();
   const { badges } = useBadges();
   const { runs, totalDistKm, totalRuns } = useRunHistory();
+  const joinedCommunityId = typeof window !== "undefined" ? localStorage.getItem("kad_community_joined") : null;
+  const { weeklyFiresReceived } = useSocialFeed(joinedCommunityId);
 
   const totalDurationSec = runs.reduce((s, r) => s + r.duration, 0);
   const totalKad = kadBalance?.uiAmount ?? 0;
 
   const displayDist = unit === "mi" ? totalDistKm / KM_PER_MI : totalDistKm;
 
-  const copyAddress = () => {
-    if (!address) return;
-    navigator.clipboard.writeText(address).then(
-      () => toast.success("Address copied"),
+  const copyProfileLink = () => {
+    const slug = (profileName || "").toLowerCase().replace(/\s+/g, "-") || address || "";
+    if (!slug) return;
+    const profileUrl = `${window.location.origin}/u/${slug}`;
+    navigator.clipboard.writeText(profileUrl).then(
+      () => toast.success("Profile link copied!"),
       () => toast.error("Couldn't copy"),
     );
   };
@@ -242,7 +247,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               </button>
               {address && (
                 <button
-                  onClick={copyAddress}
+                  onClick={copyProfileLink}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 7,
                     background: "none", border: "none", cursor: "pointer",
@@ -385,6 +390,21 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               }} />
             ))}
           </div>
+        </div>
+
+        {/* Fires this week */}
+        <div style={{
+          background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
+          borderRadius: 16, padding: "14px 18px",
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <KIcon name="flame" size={20} color="#E0F479" />
+          <span style={{
+            fontSize: 15, fontWeight: 600,
+            color: weeklyFiresReceived > 0 ? "#FFFFFF" : "rgba(255,255,255,0.4)",
+          }}>
+            {weeklyFiresReceived} fire{weeklyFiresReceived !== 1 ? "s" : ""} this week
+          </span>
         </div>
 
         {/* Badges */}

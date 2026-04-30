@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
@@ -8,7 +8,9 @@ import { useBadges, incrementTotalRuns } from "../lib/hooks/use-badges";
 import { type RaceResult, positionSuffix } from "../lib/hooks/use-flash-run";
 import { RacePodium } from "./flash-run-screen";
 import { KIcon } from "./ui/primitives";
+import { generateRunCardPNG } from "../lib/run-card-png";
 import type { Badge } from "../lib/hooks/use-badges";
+import type { LatLon } from "../lib/hooks/use-run-tracker";
 
 function formatDuration(s: number) {
   const hh = Math.floor(s / 3600);
@@ -42,6 +44,7 @@ type RunSnapshot = {
   boostMultiplier: number;
   boostName: string | null;
   underdogMultiplier: number;
+  socialMultiplier: number;
   finalKAD: number;
 };
 
@@ -53,13 +56,23 @@ type Props = {
   isClaiming: boolean;
   claimed: boolean;
   raceResult?: RaceResult;
+  onShare?: () => void;
+  isShared?: boolean;
+  communityName?: string;
+  routeCoords?: LatLon[];
+  runnerName?: string;
+  profileSlug?: string;
+  txSignature?: string | null;
+  flashRunEventName?: string;
+  flashRunPosition?: number;
+  flashRunTotalRunners?: number;
 };
 
 // Deterministic sparkle positions (avoids hydration mismatch from Math.random)
 const SPARKLE_POS = [[140, 200], [280, 160], [100, 320], [320, 320]] as const;
 
-export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaiming, claimed, raceResult }: Props) {
-  const { distanceMeters, durationSeconds, reachedSprint, baseKAD, boostMultiplier: boostMult, underdogMultiplier: underdogMult, finalKAD } = snapshot;
+export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaiming, claimed, raceResult, onShare, isShared, communityName, routeCoords, runnerName, profileSlug, txSignature, flashRunEventName, flashRunPosition, flashRunTotalRunners }: Props) {
+  const { distanceMeters, durationSeconds, reachedSprint, baseKAD, boostMultiplier: boostMult, underdogMultiplier: underdogMult, socialMultiplier: socialMult, finalKAD } = snapshot;
   const distKm = distanceMeters / 1000;
   const paceSecPerKm = distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
   const paceMinPerKm = paceSecPerKm / 60;
@@ -67,12 +80,14 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
   const { stars, label: rarityLabel } = rarity(distKm, paceMinPerKm);
   const xpEarned = Math.round(distKm * 10 * multiplier);
 
-  const hasMultipliers = multiplier > 1 || boostMult > 1 || underdogMult > 1;
+  const hasMultipliers = multiplier > 1 || boostMult > 1 || underdogMult > 1 || socialMult > 1;
   const afterStreak = baseKAD * multiplier;
   const streakContrib = afterStreak - baseKAD;
   const afterBoost = afterStreak * boostMult;
   const boostContrib = afterBoost - afterStreak;
-  const underdogContrib = finalKAD - afterBoost;
+  const afterUnderdog = afterBoost * underdogMult;
+  const underdogContrib = afterUnderdog - afterBoost;
+  const socialContrib = afterUnderdog * socialMult - afterUnderdog;
 
   const { level: levelBefore, levelXP: xpBefore, levelTitle, nextTitle, addXP } = useXP();
   const { streak, recordRun } = useStreak();
@@ -100,6 +115,61 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
     setNewBadges(unlocked);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const buildPngParams = useCallback(() => {
+    const paceSecPerKmVal = distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
+    const pMin = Math.floor(paceSecPerKmVal / 60);
+    const pSec = Math.round(paceSecPerKmVal % 60);
+    const hh = Math.floor(durationSeconds / 3600);
+    const mm = Math.floor((durationSeconds % 3600) / 60).toString().padStart(2, "0");
+    const ss = (durationSeconds % 60).toString().padStart(2, "0");
+    return {
+      distanceKm: distKm,
+      durationFormatted: hh > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`,
+      paceFormatted: `${pMin}:${pSec.toString().padStart(2, "0")}`,
+      kadEarned: finalKAD,
+      routeCoords: routeCoords || [],
+      txSignature: txSignature ?? null,
+      runnerName: runnerName || "Runner",
+      rarity: { stars, label: rarityLabel },
+      flashRunEventName,
+      flashRunPosition,
+      flashRunTotalRunners,
+    };
+  }, [distKm, distanceMeters, durationSeconds, finalKAD, routeCoords, txSignature, runnerName, stars, rarityLabel, flashRunEventName, flashRunPosition, flashRunTotalRunners]);
+
+  const handleDownload = useCallback(async () => {
+    setIsGenerating(true);
+    try {
+      const blob = await generateRunCardPNG(buildPngParams());
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kadence-run-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate run card:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [buildPngParams]);
+
+  const handleTweet = useCallback(() => {
+    const paceSecPerKmVal = distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
+    const pMin = Math.floor(paceSecPerKmVal / 60);
+    const pSec = Math.round(paceSecPerKmVal % 60);
+    const paceStr = `${pMin}:${pSec.toString().padStart(2, "0")}`;
+    const tweetText = `Just ran ${distKm.toFixed(2)}km at ${paceStr}/km and earned ${finalKAD.toFixed(2)} $KAD on @kadenceRun \u{1F525}`;
+    const parts = [`text=${encodeURIComponent(tweetText)}`];
+    if (profileSlug) {
+      const profileUrl = `${window.location.origin}/u/${profileSlug}`;
+      parts.push(`url=${encodeURIComponent(profileUrl)}`);
+    }
+    window.open(`https://twitter.com/intent/tweet?${parts.join("&")}`, "_blank");
+  }, [distKm, distanceMeters, durationSeconds, finalKAD, profileSlug]);
 
   const xpBarWidth = Math.min(xpAfter, 100);
   const didLevelUp = levelAfter > levelBefore;
@@ -219,6 +289,12 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
                 <span style={{ color: "#E0F479" }}>+{underdogContrib.toFixed(2)} KAD</span>
               </div>
             )}
+            {socialMult > 1 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                <span>Social ({socialMult}x)</span>
+                <span style={{ color: "#E0F479" }}>+{socialContrib.toFixed(2)} KAD</span>
+              </div>
+            )}
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700 }}>
               <span>Total</span>
@@ -313,6 +389,70 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
             <><KIcon name="sparkle" size={16} color="#0D0D0D" fill="#0D0D0D" stroke={0} /> Claim {finalKAD.toFixed(2)} KAD</>
           )}
         </button>
+
+        {onShare && !isShared && (
+          <button
+            onClick={onShare}
+            style={{
+              height: 50, borderRadius: 50, border: "1px solid rgba(255,255,255,0.16)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.7)",
+              fontFamily: "inherit", fontWeight: 600, fontSize: 13, letterSpacing: "0.08em",
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              width: "100%",
+            }}
+          >
+            <KIcon name="share" size={14} color="rgba(255,255,255,0.7)" /> Share to {communityName}
+          </button>
+        )}
+
+        {isShared && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{
+              height: 44, borderRadius: 50, border: "1px solid rgba(63,185,119,0.3)",
+              background: "rgba(63,185,119,0.1)", color: "#3FB977",
+              fontFamily: "inherit", fontWeight: 600, fontSize: 13, letterSpacing: "0.08em",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              <KIcon name="check" size={14} color="#3FB977" /> Shared to {communityName}
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={handleDownload}
+                disabled={isGenerating}
+                style={{
+                  flex: 1, height: 46, borderRadius: 50,
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  background: "transparent", color: "#fff",
+                  fontFamily: "inherit", fontWeight: 600, fontSize: 12, letterSpacing: "0.06em",
+                  cursor: isGenerating ? "default" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  opacity: isGenerating ? 0.6 : 1,
+                }}
+              >
+                <KIcon name="download" size={14} color="#fff" />
+                {isGenerating ? "Generating…" : "Run Card"}
+              </button>
+
+              <button
+                onClick={handleTweet}
+                style={{
+                  flex: 1, height: 46, borderRadius: 50,
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  background: "transparent", color: "#fff",
+                  fontFamily: "inherit", fontWeight: 600, fontSize: 12, letterSpacing: "0.06em",
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                }}
+              >
+                <KIcon name="share" size={14} color="#fff" />
+                Share on X
+              </button>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={onBack}

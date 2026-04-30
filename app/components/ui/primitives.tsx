@@ -192,6 +192,7 @@ const PATHS: Record<string, string> = {
   star:     "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6z",
   wallet:   "M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 000 4h4v-4z",
   zap:      "M13 2L4 14h7l-1 8 9-12h-7l1-8z",
+  download: "M12 4v12M7 13l5 5 5-5M5 20h14",
 };
 
 type KIconProps = {
