@@ -1,4 +1,8 @@
-import { getBase58Encoder, type Address, type ReadonlyUint8Array } from "@solana/kit";
+import {
+  getBase58Encoder,
+  type Address,
+  type ReadonlyUint8Array,
+} from "@solana/kit";
 import {
   COMPLETE_RUN_DISCRIMINATOR,
   getCompleteRunInstructionDataDecoder,
@@ -23,7 +27,7 @@ function discriminatorMatches(data: ReadonlyUint8Array): boolean {
 
 export async function fetchChainRuns(
   client: SolanaClient,
-  walletAddress: Address,
+  walletAddress: Address
 ): Promise<ChainRun[]> {
   const signatures = await client.rpc
     .getSignaturesForAddress(walletAddress, { limit: 200 })

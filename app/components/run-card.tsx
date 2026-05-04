@@ -114,7 +114,7 @@ export function RunCard() {
         toast.error(parseTransactionError(err));
       }
     },
-    [signer, send, getExplorerUrl, mutateBalance],
+    [signer, send, getExplorerUrl, mutateBalance]
   );
 
   const handleFinishRun = useCallback(async () => {
@@ -154,7 +154,9 @@ export function RunCard() {
         <div className="space-y-1">
           <p className="text-lg font-semibold">Run &amp; Earn KAD</p>
           <p className="text-sm text-muted">
-            {isRunning ? "Run in progress…" : "Complete a run to mint KAD — 1 KAD per km."}
+            {isRunning
+              ? "Run in progress…"
+              : "Complete a run to mint KAD — 1 KAD per km."}
           </p>
         </div>
         <span className="rounded-full bg-cream px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground/80">

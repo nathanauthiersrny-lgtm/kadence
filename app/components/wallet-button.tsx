@@ -85,9 +85,30 @@ export function WalletButton() {
               <p className="mt-2 text-xs text-muted">Connecting...</p>
             )}
             {error != null && (
-              <p className="mt-2 text-xs text-destructive">
-                {error instanceof Error ? error.message : String(error)}
-              </p>
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-destructive">
+                  {error instanceof Error ? error.message : String(error)}
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-muted underline hover:text-foreground"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+            {connectors.length === 0 && (
+              <div className="mt-2 text-xs text-muted">
+                No wallet found.{" "}
+                <a
+                  href="https://phantom.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-foreground underline"
+                >
+                  Get Phantom
+                </a>
+              </div>
             )}
           </div>
         )}

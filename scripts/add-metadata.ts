@@ -94,7 +94,10 @@ async function main() {
   const uriBytes = encodeBorshString(TOKEN_URI);
 
   const data = new Uint8Array(
-    discriminator.length + nameBytes.length + symbolBytes.length + uriBytes.length
+    discriminator.length +
+      nameBytes.length +
+      symbolBytes.length +
+      uriBytes.length
   );
   let offset = 0;
   data.set(discriminator, offset);

@@ -10,9 +10,13 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        )
+      )
   );
   self.clients.claim();
 });
@@ -24,7 +28,10 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(request.url);
 
   // Network-first for API / RPC calls
-  if (url.pathname.startsWith("/api") || url.hostname !== self.location.hostname) {
+  if (
+    url.pathname.startsWith("/api") ||
+    url.hostname !== self.location.hostname
+  ) {
     e.respondWith(
       fetch(request)
         .then((res) => {

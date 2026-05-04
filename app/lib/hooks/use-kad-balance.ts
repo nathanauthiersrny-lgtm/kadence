@@ -47,15 +47,11 @@ export function useKadBalance(runnerAddress?: Address) {
   const client = useSolanaClient();
 
   return useSWR<KadBalanceResult>(
-    runnerAddress
-      ? (["kad-balance", cluster, runnerAddress] as const)
-      : null,
+    runnerAddress ? (["kad-balance", cluster, runnerAddress] as const) : null,
     async ([, , runner]) => {
       const ata = await findKadAtaAddress(runner as Address);
       try {
-        const { value } = await client.rpc
-          .getTokenAccountBalance(ata)
-          .send();
+        const { value } = await client.rpc.getTokenAccountBalance(ata).send();
         return {
           ata,
           amount: value.amount,
@@ -66,6 +62,10 @@ export function useKadBalance(runnerAddress?: Address) {
         return { ata, amount: "0", uiAmount: 0 };
       }
     },
-    { refreshInterval: 5_000, revalidateOnFocus: true },
+    {
+      refreshInterval: 15_000,
+      dedupingInterval: 10_000,
+      revalidateOnFocus: true,
+    }
   );
 }

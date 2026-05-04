@@ -37,10 +37,14 @@ export function RunMap({ route, className }: Props) {
         scrollWheelZoom: false,
       });
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 19,
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-      }).addTo(map);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          maxZoom: 19,
+          attribution:
+            '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+        }
+      ).addTo(map);
 
       // Default view — will be overridden once GPS positions arrive.
       map.setView([51.505, -0.09], 15);
@@ -103,7 +107,10 @@ export function RunMap({ route, className }: Props) {
 
       // Pan/zoom to current position; initial zoom = 16, then keep user's zoom.
       const currentZoom = map.getZoom();
-      map.setView([last.lat, last.lon], currentZoom === 15 && route.length <= 2 ? 16 : currentZoom);
+      map.setView(
+        [last.lat, last.lon],
+        currentZoom === 15 && route.length <= 2 ? 16 : currentZoom
+      );
     });
   }, [route]);
 

@@ -2,11 +2,13 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useSWRConfig } from "swr";
+import { toast } from "sonner";
 import type { Instruction } from "@solana/kit";
 import { createClient } from "@solana/kit-client-rpc";
 import { useWallet } from "../wallet/context";
 import { useCluster } from "../../components/cluster-context";
 import { getClusterUrl, getClusterWsConfig } from "../solana-client";
+import { withRetry } from "../retry";
 
 export function useSendTransaction() {
   const { signer } = useWallet();
@@ -32,7 +34,16 @@ export function useSendTransaction() {
 
       setIsSending(true);
       try {
-        const result = await txClient.sendTransaction([...instructions]);
+        const result = await withRetry(
+          () => txClient.sendTransaction([...instructions]),
+          {
+            attempts: 3,
+            baseDelay: 1500,
+            onRetry: (attempt) => {
+              toast.info(`Transaction dropped, retrying (${attempt}/2)...`);
+            },
+          }
+        );
         mutate((key: unknown) => Array.isArray(key) && key[0] === "balance");
         return result.context.signature;
       } finally {

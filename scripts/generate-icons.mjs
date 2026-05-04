@@ -57,7 +57,8 @@ for (let n = 0; n < 256; n++) {
 }
 function crc32(buf) {
   let c = -1;
-  for (let i = 0; i < buf.length; i++) c = crcTable[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  for (let i = 0; i < buf.length; i++)
+    c = crcTable[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
   return c ^ -1;
 }
 
@@ -67,11 +68,41 @@ function drawLogo(pixels, size, logoScale, offsetX, offsetY) {
   // Three chevron stripes making the Solana-style K
   const stripes = [
     // Top stripe (going right-to-left at top)
-    { x1: 0.91, y1: 3.18, x2: 3.61, y2: 0.34, x3: 17.09, y3: 0.14, x4: 14.39, y4: 3.49, fillY: 0 },
+    {
+      x1: 0.91,
+      y1: 3.18,
+      x2: 3.61,
+      y2: 0.34,
+      x3: 17.09,
+      y3: 0.14,
+      x4: 14.39,
+      y4: 3.49,
+      fillY: 0,
+    },
     // Middle stripe
-    { x1: 0.93, y1: 6.06, x2: 3.63, y2: 8.9, x3: 16.86, y3: 9.09, x4: 17.09, y4: 8.58, fillY: 5.5 },
+    {
+      x1: 0.93,
+      y1: 6.06,
+      x2: 3.63,
+      y2: 8.9,
+      x3: 16.86,
+      y3: 9.09,
+      x4: 17.09,
+      y4: 8.58,
+      fillY: 5.5,
+    },
     // Bottom stripe
-    { x1: 0.93, y1: 13.98, x2: 3.63, y2: 11.14, x3: 16.86, y3: 10.95, x4: 17.08, y4: 11.46, fillY: 10.9 },
+    {
+      x1: 0.93,
+      y1: 13.98,
+      x2: 3.63,
+      y2: 11.14,
+      x3: 16.86,
+      y3: 10.95,
+      x4: 17.08,
+      y4: 11.46,
+      fillY: 10.9,
+    },
   ];
 
   // Draw each stripe as a filled parallelogram

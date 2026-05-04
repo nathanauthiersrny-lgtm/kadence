@@ -9,11 +9,13 @@ This plan adds 6 features to Kadence in 4 phases. Each phase ends with a develop
 **Design system:** `#0D0D0D` background, `#1A1A1A` cards, `#E0F479` lime accent, `#3FB977` green, DM Sans font, pill buttons (border-radius 50px), 16px card border-radius, white borders at `rgba(255,255,255,0.16)`. All styles are inline (no CSS modules/Tailwind classes in components). Primitives in `app/components/ui/primitives.tsx`: `KCard`, `KButton`, `KPill`, `KAvatar`, `KIcon`.
 
 **Current multiplier formula** (`page.tsx` line 130):
+
 ```
 finalKAD = baseKAD * streak_multiplier * boost_multiplier * underdog_multiplier
 ```
 
 **Dependency graph:**
+
 ```
 Phase 1 (Feed + Share)
    |
@@ -37,28 +39,30 @@ Phase 1 (Feed + Share)
 ### 1A. New hook: `app/lib/hooks/use-social-feed.ts`
 
 **localStorage keys:**
+
 - `kadence_shared_runs` — `SharedRun[]`
 - `kadence_fires` — `Record<string, boolean>` (which runs the current user has fired)
 
 **Data model:**
+
 ```ts
 import type { LatLon } from "./use-run-tracker";
 
 export type SharedRun = {
-  id: string;                // "shared-{Date.now()}"
-  runId: string;             // references RunEntry.id from kadence_runs
-  communityId: string;       // e.g. "road-starter", "trail-regular"
-  runnerName: string;        // from kadence_profile_name or wallet slug
-  walletAddress: string;     // full address
+  id: string; // "shared-{Date.now()}"
+  runId: string; // references RunEntry.id from kadence_runs
+  communityId: string; // e.g. "road-starter", "trail-regular"
+  runnerName: string; // from kadence_profile_name or wallet slug
+  walletAddress: string; // full address
   distanceKm: number;
   durationSeconds: number;
   paceSecPerKm: number;
   kadEarned: number;
-  routeCoords: LatLon[];     // simplified — store every 5th coord to save space
+  routeCoords: LatLon[]; // simplified — store every 5th coord to save space
   txSignature: string | null;
-  sharedAt: string;          // ISO timestamp
-  fireCount: number;         // total fires received
-  isSimulated: boolean;      // true for demo community members
+  sharedAt: string; // ISO timestamp
+  fireCount: number; // total fires received
+  isSimulated: boolean; // true for demo community members
   // Flash run fields (optional)
   flashRunEventName?: string;
   flashRunPosition?: number;
@@ -67,14 +71,15 @@ export type SharedRun = {
 ```
 
 **Hook signature:**
+
 ```ts
 export function useSocialFeed(communityId: string | null): {
-  sharedRuns: SharedRun[];            // runs for the given community, sorted by sharedAt desc
+  sharedRuns: SharedRun[]; // runs for the given community, sorted by sharedAt desc
   shareRun: (params: ShareRunParams) => SharedRun;
   fireRun: (sharedRunId: string) => void;
   hasFired: (sharedRunId: string) => boolean;
-  weeklyFiresReceived: number;        // fires received by current user this Mon-Sun
-  socialMultiplier: number;           // derived from weeklyFiresReceived
+  weeklyFiresReceived: number; // fires received by current user this Mon-Sun
+  socialMultiplier: number; // derived from weeklyFiresReceived
 };
 ```
 
@@ -95,16 +100,18 @@ export function useSocialFeed(communityId: string | null): {
 **File:** `app/components/post-run-screen.tsx`
 
 Add a "Share Run" button between the Claim CTA (line 296) and "Back to home" (line 317). New props:
+
 ```ts
 type Props = {
   // ...existing props (snapshot, multiplier, onClaim, onBack, isClaiming, claimed, raceResult)
   onShare?: () => void;
   isShared?: boolean;
-  communityName?: string;   // e.g. "Road Starters"
+  communityName?: string; // e.g. "Road Starters"
 };
 ```
 
 **Button behavior:**
+
 - Only renders if `onShare` is provided and user has joined a community
 - Before sharing: ghost-styled button with share icon + "Share to [communityName]"
 - After sharing (`isShared === true`): green confirmation state "Shared to [communityName]" with check icon
@@ -118,6 +125,7 @@ type Props = {
 - Call `useSocialFeed(joinedCommunity?.id ?? null)` at the component level
 - Add state: `const [isShared, setIsShared] = useState(false)`
 - Create handler:
+
 ```ts
 const handleShare = useCallback(() => {
   if (!runSnapshot || !joinedCommunity) return;
@@ -130,8 +138,10 @@ const handleShare = useCallback(() => {
     walletAddress: walletAddr,
     distanceKm: runSnapshot.distanceMeters / 1000,
     durationSeconds: runSnapshot.durationSeconds,
-    paceSecPerKm: runSnapshot.distanceMeters > 0
-      ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000 : 0,
+    paceSecPerKm:
+      runSnapshot.distanceMeters > 0
+        ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000
+        : 0,
     kadEarned: runSnapshot.finalKAD,
     routeCoords: runSnapshot.routeCoords.filter((_, i) => i % 5 === 0), // every 5th point
     txSignature: null, // updated later if claimed
@@ -142,6 +152,7 @@ const handleShare = useCallback(() => {
   setIsShared(true);
 }, [runSnapshot, joinedCommunity, signer, socialFeed]);
 ```
+
 - Pass `onShare={handleShare}`, `isShared`, `communityName={joinedCommunity?.name}` to PostRunScreen
 - Reset `setIsShared(false)` in `handleBack`
 
@@ -156,6 +167,7 @@ Replace the text-based activity feed (lines 340-382 in `DetailView`) with struct
 Import `useSocialFeed` in the `DetailView` component. Get `sharedRuns`, `fireRun`, `hasFired` from the hook.
 
 **Each feed card renders:**
+
 - Avatar circle (28x28, cycling through `avatarColors` array already defined at line 214)
 - Runner name (bold, 13px) + time ago (10px, muted)
 - Stats row: distance + pace + KAD earned (11px, inline, separated by dots)
@@ -179,17 +191,20 @@ Import `useSocialFeed` in the `DetailView` component. Get `sharedRuns`, `fireRun
 ### Phase 1 — Developer Handoff
 
 **What was built:**
+
 - `app/lib/hooks/use-social-feed.ts` — hook managing shared runs + fires in localStorage
 - Share button added to `post-run-screen.tsx` (props: `onShare`, `isShared`, `communityName`)
 - Share handler wired in `page.tsx` (calls `socialFeed.shareRun()`)
 - Community feed in `community-screen.tsx` now shows structured run cards with fire buttons
 
 **Current data model:**
+
 - `kadence_shared_runs` in localStorage: array of `SharedRun` objects (see type above)
 - `kadence_fires` in localStorage: `Record<string, boolean>` tracking which runs the current user has fired
 - Simulated runs are generated with `isSimulated: true` and merged into the feed
 
 **Available from `useSocialFeed(communityId)`:**
+
 - `sharedRuns` — all runs for a community (real + simulated), sorted newest first
 - `shareRun(params)` — persists a new shared run, returns the created SharedRun
 - `fireRun(id)` / `hasFired(id)` — fire toggle (one per user per run)
@@ -197,6 +212,7 @@ Import `useSocialFeed` in the `DetailView` component. Get `sharedRuns`, `fireRun
 - `socialMultiplier` — computed from weeklyFiresReceived (1.00 / 1.02 / 1.05 / 1.08)
 
 **What the PostRun screen looks like now:**
+
 - Hero + stats + badges + Claim CTA + **Share button** + Back to home
 - Share button only appears when `onShare` prop is provided
 
@@ -207,6 +223,7 @@ Import `useSocialFeed` in the `DetailView` component. Get `sharedRuns`, `fireRun
 ## Phase 2 — Fire System + Social Multiplier
 
 ### Prerequisites
+
 Phase 1 must be complete. You need the `useSocialFeed` hook returning `weeklyFiresReceived` and `socialMultiplier`.
 
 ### What to build
@@ -219,6 +236,7 @@ Phase 1 must be complete. You need the `useSocialFeed` hook returning `weeklyFir
 ### 2A. Fire persistence verification
 
 The `fireRun` and `hasFired` functions should already work from Phase 1. Verify:
+
 - Firing a run increments `fireCount` on the `SharedRun` in `kadence_shared_runs`
 - The run ID is added to `kadence_fires` so the user can't fire the same run twice
 - Refreshing the page preserves fire state
@@ -230,6 +248,7 @@ The `fireRun` and `hasFired` functions should already work from Phase 1. Verify:
 Add a "Fires this week" card. Import `useSocialFeed` (pass the user's community ID from `useCommunity`).
 
 Place it after the streak section. Style:
+
 ```
 [flame icon #E0F479]  12 fires this week
 ```
@@ -241,19 +260,26 @@ Small card, `#1A1A1A` background, 16px border-radius. Uses `KIcon` name `"flame"
 **File:** `app/page.tsx`
 
 **Current code (line 130):**
+
 ```ts
-const finalKAD = Math.round(baseKAD * multiplier * boostMult * underdogMult * 100) / 100;
+const finalKAD =
+  Math.round(baseKAD * multiplier * boostMult * underdogMult * 100) / 100;
 ```
 
 **Change to:**
+
 ```ts
 const socialMult = socialFeed.socialMultiplier;
-const finalKAD = Math.round(baseKAD * multiplier * boostMult * underdogMult * socialMult * 100) / 100;
+const finalKAD =
+  Math.round(
+    baseKAD * multiplier * boostMult * underdogMult * socialMult * 100
+  ) / 100;
 ```
 
 Also add `socialMultiplier: socialMult` to the `setRunSnapshot(...)` calls (both the normal path ~line 146 and the error fallback ~line 156, where it should default to 1).
 
 The `RunSnapshot` type in `post-run-screen.tsx` needs a new field:
+
 ```ts
 type RunSnapshot = {
   // ...existing fields
@@ -266,19 +292,30 @@ type RunSnapshot = {
 **File:** `app/components/post-run-screen.tsx`
 
 In the KAD breakdown card (lines 197-233), add the social multiplier row after the underdog row:
+
 ```tsx
-{socialMult > 1 && (
-  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-    <span>Social ({socialMult}x)</span>
-    <span style={{ color: "#E0F479" }}>+{socialContrib.toFixed(2)} KAD</span>
-  </div>
-)}
+{
+  socialMult > 1 && (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 13,
+        color: "rgba(255,255,255,0.6)",
+      }}
+    >
+      <span>Social ({socialMult}x)</span>
+      <span style={{ color: "#E0F479" }}>+{socialContrib.toFixed(2)} KAD</span>
+    </div>
+  );
+}
 ```
 
 Compute `socialContrib`:
+
 ```ts
 const socialMult = snapshot.socialMultiplier ?? 1;
-const afterUnderdog = afterBoost * underdogMult;  // this is the current finalKAD calc
+const afterUnderdog = afterBoost * underdogMult; // this is the current finalKAD calc
 const socialContrib = afterUnderdog * socialMult - afterUnderdog;
 ```
 
@@ -299,6 +336,7 @@ Update the Total row to reflect the new `finalKAD` (which already includes socia
 ### Phase 2 — Developer Handoff
 
 **What was built on top of Phase 1:**
+
 - Fire interactions fully persisted in localStorage (already scaffolded in Phase 1 via `fireRun`/`hasFired` — verified working: `fireCount` increments on `SharedRun`, `kadence_fires` tracks one-per-user, state survives refresh)
 - Profile screen shows "Fires this week" card with flame icon, below the streak card
 - KAD formula is now: `baseKAD * streak * boost * underdog * social` (line ~136 in `page.tsx`)
@@ -317,11 +355,11 @@ Update the Total row to reflect the new `finalKAD` (which already includes socia
 
 **Files modified in Phase 2:**
 
-| File | What changed |
-|---|---|
-| `app/page.tsx` | Added `socialMultiplier` to `RunSnapshot` type; `socialMult` factor in KAD formula; passed to both snapshot paths (success + error fallback where it defaults to 1) |
+| File                                 | What changed                                                                                                                                                                            |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/page.tsx`                       | Added `socialMultiplier` to `RunSnapshot` type; `socialMult` factor in KAD formula; passed to both snapshot paths (success + error fallback where it defaults to 1)                     |
 | `app/components/post-run-screen.tsx` | Added `socialMultiplier` to local `RunSnapshot` type; destructured as `socialMult`; updated `hasMultipliers` check; added `afterUnderdog`/`socialContrib` math; social row in breakdown |
-| `app/components/profile-screen.tsx` | Imported `useSocialFeed`; reads `kad_community_joined` from localStorage; added "Fires this week" card with `KIcon name="flame"` after streak section; muted when 0 |
+| `app/components/profile-screen.tsx`  | Imported `useSocialFeed`; reads `kad_community_joined` from localStorage; added "Fires this week" card with `KIcon name="flame"` after streak section; muted when 0                     |
 
 **What's NOT done yet:** Public profile route (Phase 3), Run card PNG + tweet (Phase 4). These are independent of each other — can be built in parallel.
 
@@ -339,6 +377,7 @@ Update the Total row to reflect the new `finalKAD` (which already includes socia
 ## Phase 3 — Public Profile URL
 
 ### Prerequisites
+
 Phase 1 must be complete (you need the social feed data). Phase 2 is NOT required.
 
 ### What to build
@@ -346,6 +385,7 @@ Phase 1 must be complete (you need the social feed data). Phase 2 is NOT require
 A public-facing profile page at `/u/[slug]` — the first file-based route outside the SPA. No login required to view. Dark editorial design, shareable as a link.
 
 **Key limitation:** No backend exists. The page reads from localStorage, which is browser-local. This means:
+
 - Visiting your own profile URL → shows your real data
 - Visiting anyone else's URL → shows demo/placeholder data
 - Detection: compare slug against stored `kadence_profile_name` or wallet address
@@ -355,6 +395,7 @@ A public-facing profile page at `/u/[slug]` — the first file-based route outsi
 Must be a client component (`"use client"`) since it needs localStorage access.
 
 **Structure:**
+
 ```tsx
 "use client";
 
@@ -371,6 +412,7 @@ export default function PublicProfilePage() {
 ```
 
 **Slug matching logic:**
+
 ```ts
 const profileName = localStorage.getItem("kadence_profile_name") || "";
 const slugFromName = profileName.toLowerCase().replace(/\s+/g, "-");
@@ -399,8 +441,12 @@ Full dark editorial page — standalone, no SPA navigation chrome. Structure:
 **File:** `app/components/profile-screen.tsx`
 
 The existing profile screen has a share icon button (line ~259) that copies the wallet address. Change or augment this to copy the profile URL instead:
+
 ```ts
-const slug = (profileName || "").toLowerCase().replace(/\s+/g, "-") || address?.toString() || "";
+const slug =
+  (profileName || "").toLowerCase().replace(/\s+/g, "-") ||
+  address?.toString() ||
+  "";
 const profileUrl = `${window.location.origin}/u/${slug}`;
 navigator.clipboard.writeText(profileUrl);
 ```
@@ -425,16 +471,19 @@ Verify that `/app/layout.tsx` wraps everything with the Providers component (wal
 ### Phase 3 — Developer Handoff
 
 **What was built:**
+
 - `app/u/[slug]/page.tsx` — public profile page, client component (~320 lines)
 - Profile screen share button (`copyAddress` → `copyProfileLink`) now copies `/u/{slug}` URL with toast "Profile link copied!"
 
 **Route structure:**
+
 - `/` — main SPA (all existing views via client-side state)
 - `/u/[slug]` — public profile (new, standalone, dynamic route)
 
 **Slug format:** Lowercase profile name with spaces→hyphens, or full wallet address. Derived at runtime from `kadence_profile_name` or wallet address.
 
 **Architecture:**
+
 - `PublicProfilePage` (entry) — detects own vs other profile via slug matching against `kadence_profile_name` / wallet address
 - `OwnProfile` — uses real hooks: `useRunHistory`, `useStreak`, `useBadges`, `useXP`, `useKadBalance`, `useSocialFeed`
 - `DemoProfile` — uses `buildDemoProfile(slug)` with seeded random for deterministic fake data (10-50 runs, 50-300km, streak 2-8, level 3-7, 3-4 badges earned, 5 recent runs)
@@ -444,9 +493,9 @@ Verify that `/app/layout.tsx` wraps everything with the Providers component (wal
 
 **Files modified in Phase 3:**
 
-| File | What changed |
-|---|---|
-| `app/u/[slug]/page.tsx` | New — full public profile page |
+| File                                | What changed                                              |
+| ----------------------------------- | --------------------------------------------------------- |
+| `app/u/[slug]/page.tsx`             | New — full public profile page                            |
 | `app/components/profile-screen.tsx` | `copyAddress` → `copyProfileLink`, copies `/u/{slug}` URL |
 
 **What's NOT done yet:** Run card PNG generation and tweet sharing (Phase 4). This is independent — start anytime.
@@ -465,6 +514,7 @@ Verify that `/app/layout.tsx` wraps everything with the Providers component (wal
 ## Phase 4 — Run Card PNG + Tweet Template
 
 ### Prerequisites
+
 Phase 1 must be complete (the share flow exists on PostRun). Phases 2 and 3 are NOT required.
 
 ### What to build
@@ -481,8 +531,8 @@ Pure Canvas API — no external dependencies. Single exported function:
 ```ts
 export type RunCardParams = {
   distanceKm: number;
-  durationFormatted: string;    // "23:45" or "1:02:30"
-  paceFormatted: string;        // "5:12"
+  durationFormatted: string; // "23:45" or "1:02:30"
+  paceFormatted: string; // "5:12"
   kadEarned: number;
   routeCoords: LatLon[];
   txSignature: string | null;
@@ -500,6 +550,7 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob>;
 **Canvas dimensions:** 1080 x 1350 (4:5 ratio, ideal for Instagram/Twitter)
 
 **Standard card layout:**
+
 ```
 +------------------------------------------+
 |  [dot] KADENCE                           |  <- top bar, 11px uppercase
@@ -521,12 +572,14 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob>;
 ```
 
 **Route polyline rendering:**
+
 1. Find min/max lat and lon from `routeCoords`
 2. Normalize to a bounding box (e.g., 200px padding on each side of a 1080x600 area)
 3. Draw with `ctx.strokeStyle = "#E0F479"`, `ctx.lineWidth = 3`, `ctx.lineCap = "round"`, `ctx.lineJoin = "round"`
 4. Add a subtle glow: draw again with `ctx.shadowColor = "rgba(224,244,121,0.4)"`, `ctx.shadowBlur = 12`
 
 **Flash run variant** (when `flashRunEventName` is present):
+
 - Add event name at top: e.g., "TEMPO TUESDAY" in uppercase, 24px
 - Add position badge in center: "#12 / 47" or for top 3, a larger treatment
 - Top 3 colors: 1st = #FFD700 (gold), 2nd = #C0C0C0 (silver), 3rd = #CD7F32 (bronze)
@@ -535,6 +588,7 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob>;
 **Font loading:** Canvas doesn't have access to CSS fonts. Use `ctx.font = "700 72px 'DM Sans', sans-serif"`. Load the font via `document.fonts.ready` before drawing. The font is already loaded by the page via `next/font/google` in layout.tsx.
 
 **Export:**
+
 ```ts
 return new Promise<Blob>((resolve, reject) => {
   canvas.toBlob((blob) => {
@@ -551,16 +605,18 @@ return new Promise<Blob>((resolve, reject) => {
 After the user taps "Share Run" (Phase 1's button), expand the bottom section:
 
 **New props needed:**
+
 ```ts
 type Props = {
   // ...existing + Phase 1 props
-  routeCoords?: LatLon[];       // for PNG generation
-  runnerName?: string;          // for PNG + tweet
-  profileSlug?: string;         // for tweet link
+  routeCoords?: LatLon[]; // for PNG generation
+  runnerName?: string; // for PNG + tweet
+  profileSlug?: string; // for tweet link
 };
 ```
 
 **Flow after sharing:**
+
 1. Show "Generating card..." briefly while PNG is created
 2. Replace the Share button area with:
    - "Shared to [Community]" confirmation (green check)
@@ -569,6 +625,7 @@ type Props = {
    - "Back to home" link
 
 **Download handler:**
+
 ```ts
 const handleDownload = async () => {
   const blob = await generateRunCardPNG({ ... });
@@ -584,11 +641,13 @@ const handleDownload = async () => {
 ### 4C. Tweet template
 
 **Format:**
+
 ```
 Just ran [distance]km at [pace]/km and earned [KAD] $KAD on @kadenceRun 🔥 [profile URL]
 ```
 
 **Implementation:**
+
 ```ts
 const tweetText = `Just ran ${distKm.toFixed(2)}km at ${paceFormatted}/km and earned ${kadEarned.toFixed(2)} $KAD on @kadenceRun 🔥`;
 const profileUrl = `${window.location.origin}/u/${profileSlug}`;
@@ -599,6 +658,7 @@ window.open(intentUrl, "_blank");
 ### 4D. Wire in `page.tsx`
 
 Pass additional data to PostRunScreen that's needed for PNG + tweet:
+
 - `routeCoords` from the run snapshot (already available in `handleEnd` via `snapshot.routeCoords`)
 - `runnerName` from `localStorage.getItem("kadence_profile_name")`
 - `profileSlug` derived from profile name or wallet address
@@ -620,39 +680,42 @@ The `RunSnapshot` extended type in `page.tsx` already has `routeCoords` — just
 ### Phase 4 — Developer Handoff ✅ COMPLETE
 
 **What was built:**
+
 - `app/lib/run-card-png.ts` — Canvas API PNG generator (1080x1350 4:5 ratio), two variants (standard + flash run with medal badge)
 - PostRun share flow expanded: after tapping "Share Run", the button area expands to show "Shared to [Community]" confirmation + "Run Card" download button + "Share on X" tweet button
 - Tweet template generates Twitter intent URL with run stats, $KAD tag, @kadenceRun mention, and profile link
 - Added `download` icon to `KIcon` primitives
 
 **PNG card features:**
+
 - Route polyline rendered from GPS coords with lime stroke + glow effect, start/end dots
 - Standard card: KADENCE branding, route, distance (72px), pace, duration, KAD earned (lime), runner name, rarity stars, Solana explorer link
 - Flash run variant: event name banner, position medal badge (#1 gold, #2 silver, #3 bronze), circle treatment for top 3
 
 **Files modified in Phase 4:**
 
-| File | What changed |
-|---|---|
-| `app/lib/run-card-png.ts` | New — Canvas API PNG generator with `generateRunCardPNG()` |
+| File                                 | What changed                                                                                                                                                                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/lib/run-card-png.ts`            | New — Canvas API PNG generator with `generateRunCardPNG()`                                                                                                                                                        |
 | `app/components/post-run-screen.tsx` | Added `routeCoords`, `runnerName`, `profileSlug`, `txSignature`, `flashRunEventName/Position/TotalRunners` props; `handleDownload` + `handleTweet` handlers; expanded share flow UI with download + tweet buttons |
-| `app/page.tsx` | Passes `routeCoords`, `runnerName`, `profileSlug`, `txSignature`, flash run fields to PostRunScreen |
-| `app/components/ui/primitives.tsx` | Added `download` icon path to PATHS |
+| `app/page.tsx`                       | Passes `routeCoords`, `runnerName`, `profileSlug`, `txSignature`, flash run fields to PostRunScreen                                                                                                               |
+| `app/components/ui/primitives.tsx`   | Added `download` icon path to PATHS                                                                                                                                                                               |
 
 **File inventory (all phases combined):**
 
-| File | Status | Phase |
-|---|---|---|
-| `app/lib/hooks/use-social-feed.ts` | New | 1 |
-| `app/lib/run-card-png.ts` | New | 4 |
-| `app/u/[slug]/page.tsx` | New | 3 |
-| `app/components/post-run-screen.tsx` | Modified | 1, 2, 4 |
-| `app/page.tsx` | Modified | 1, 2, 4 |
-| `app/components/community-screen.tsx` | Modified | 1 |
-| `app/components/profile-screen.tsx` | Modified | 2, 3 |
-| `app/components/ui/primitives.tsx` | Modified | 4 |
+| File                                  | Status   | Phase   |
+| ------------------------------------- | -------- | ------- |
+| `app/lib/hooks/use-social-feed.ts`    | New      | 1       |
+| `app/lib/run-card-png.ts`             | New      | 4       |
+| `app/u/[slug]/page.tsx`               | New      | 3       |
+| `app/components/post-run-screen.tsx`  | Modified | 1, 2, 4 |
+| `app/page.tsx`                        | Modified | 1, 2, 4 |
+| `app/components/community-screen.tsx` | Modified | 1       |
+| `app/components/profile-screen.tsx`   | Modified | 2, 3    |
+| `app/components/ui/primitives.tsx`    | Modified | 4       |
 
 **localStorage keys added:**
+
 - `kadence_shared_runs` — SharedRun[]
 - `kadence_fires` — Record<string, boolean>
 

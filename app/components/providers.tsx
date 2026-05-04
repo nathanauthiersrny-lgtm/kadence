@@ -14,7 +14,7 @@ export function Providers({ children }: PropsWithChildren) {
         <SolanaClientProvider>
           <WalletProvider>{children}</WalletProvider>
         </SolanaClientProvider>
-        <Toaster position="bottom-right" richColors />
+        <Toaster position="top-center" richColors />
       </ClusterProvider>
     </ThemeProvider>
   );

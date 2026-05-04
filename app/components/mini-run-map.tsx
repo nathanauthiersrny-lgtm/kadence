@@ -28,12 +28,19 @@ export function MiniRunMap({ coords }: Props) {
         keyboard: false,
       });
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          maxZoom: 19,
+        }
+      ).addTo(map);
 
       const latLngs = coords.map((p) => [p.lat, p.lon] as [number, number]);
-      const poly = L.polyline(latLngs, { color: "#E0F479", weight: 3, opacity: 0.9 });
+      const poly = L.polyline(latLngs, {
+        color: "#E0F479",
+        weight: 3,
+        opacity: 0.9,
+      });
       poly.addTo(map);
       map.fitBounds(poly.getBounds(), { padding: [6, 6] });
       mapRef.current = map;

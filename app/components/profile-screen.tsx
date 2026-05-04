@@ -30,17 +30,59 @@ const TROPHIES_KEY = "kadence_trophies";
 function loadTrophies(): Trophy[] {
   try {
     return JSON.parse(localStorage.getItem(TROPHIES_KEY) ?? "[]");
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 function buildDemoTrophies(): Trophy[] {
   const now = Date.now();
   const day = 86_400_000;
   return [
-    { id: "trophy-1", eventName: "Weekend Warrior", eventType: "Weekend Warrior", date: new Date(now - 1 * day).toISOString(), position: 1, totalRunners: 134, timeSeconds: 2520, distanceMeters: 10_000, kadWon: 25 },
-    { id: "trophy-2", eventName: "Tempo Tuesday", eventType: "Tempo Tuesday", date: new Date(now - 5 * day).toISOString(), position: 2, totalRunners: 89, timeSeconds: 1380, distanceMeters: 5_000, kadWon: 7.5 },
-    { id: "trophy-3", eventName: "Sunday 5K", eventType: "Sunday 5K", date: new Date(now - 8 * day).toISOString(), position: 4, totalRunners: 112, timeSeconds: 1560, distanceMeters: 5_000, kadWon: 0 },
-    { id: "trophy-4", eventName: "Weekend Warrior", eventType: "Weekend Warrior", date: new Date(now - 12 * day).toISOString(), position: 87, totalRunners: 134, timeSeconds: 3840, distanceMeters: 10_000, kadWon: 0 },
+    {
+      id: "trophy-1",
+      eventName: "Weekend Warrior",
+      eventType: "Weekend Warrior",
+      date: new Date(now - 1 * day).toISOString(),
+      position: 1,
+      totalRunners: 134,
+      timeSeconds: 2520,
+      distanceMeters: 10_000,
+      kadWon: 25,
+    },
+    {
+      id: "trophy-2",
+      eventName: "Tempo Tuesday",
+      eventType: "Tempo Tuesday",
+      date: new Date(now - 5 * day).toISOString(),
+      position: 2,
+      totalRunners: 89,
+      timeSeconds: 1380,
+      distanceMeters: 5_000,
+      kadWon: 7.5,
+    },
+    {
+      id: "trophy-3",
+      eventName: "Sunday 5K",
+      eventType: "Sunday 5K",
+      date: new Date(now - 8 * day).toISOString(),
+      position: 4,
+      totalRunners: 112,
+      timeSeconds: 1560,
+      distanceMeters: 5_000,
+      kadWon: 0,
+    },
+    {
+      id: "trophy-4",
+      eventName: "Weekend Warrior",
+      eventType: "Weekend Warrior",
+      date: new Date(now - 12 * day).toISOString(),
+      position: 87,
+      totalRunners: 134,
+      timeSeconds: 3840,
+      distanceMeters: 10_000,
+      kadWon: 0,
+    },
   ];
 }
 
@@ -61,7 +103,20 @@ function positionStr(pos: number): string {
 function fmtTrophyDate(iso: string): string {
   const d = new Date(iso);
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
@@ -73,7 +128,10 @@ function fmtTotalTime(seconds: number): string {
 }
 
 function avatarColor(addr: string): string {
-  const hex = addr.replace(/[^a-fA-F0-9]/g, "").slice(0, 6).padEnd(6, "0");
+  const hex = addr
+    .replace(/[^a-fA-F0-9]/g, "")
+    .slice(0, 6)
+    .padEnd(6, "0");
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
@@ -105,7 +163,9 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
       toggleDemo();
       return;
     }
-    tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
+    tapTimerRef.current = setTimeout(() => {
+      tapCountRef.current = 0;
+    }, 2000);
   };
 
   const [profileName, setProfileName] = useState(() => {
@@ -143,7 +203,10 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const { streak, multiplier, runsThisWeek, weeklyGoal } = useStreak();
   const { badges } = useBadges();
   const { runs, totalDistKm, totalRuns } = useRunHistory();
-  const joinedCommunityId = typeof window !== "undefined" ? localStorage.getItem("kad_community_joined") : null;
+  const joinedCommunityId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("kad_community_joined")
+      : null;
   const { weeklyFiresReceived } = useSocialFeed(joinedCommunityId);
 
   const totalDurationSec = runs.reduce((s, r) => s + r.duration, 0);
@@ -152,12 +215,13 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const displayDist = unit === "mi" ? totalDistKm / KM_PER_MI : totalDistKm;
 
   const copyProfileLink = () => {
-    const slug = (profileName || "").toLowerCase().replace(/\s+/g, "-") || address || "";
+    const slug =
+      (profileName || "").toLowerCase().replace(/\s+/g, "-") || address || "";
     if (!slug) return;
     const profileUrl = `${window.location.origin}/u/${slug}`;
     navigator.clipboard.writeText(profileUrl).then(
       () => toast.success("Profile link copied!"),
-      () => toast.error("Couldn't copy"),
+      () => toast.error("Couldn't copy")
     );
   };
 
@@ -181,36 +245,66 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   };
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column",
-      color: "#fff", fontFamily: "var(--font-sans)",
-      background: "#0D0D0D", minHeight: "100dvh",
-    }}>
-
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        color: "#fff",
+        fontFamily: "var(--font-sans)",
+        background: "#0D0D0D",
+        minHeight: "100dvh",
+      }}
+    >
       {/* Top bar */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "20px 18px 8px",
-      }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "20px 18px 8px",
+        }}
+      >
         <button
           onClick={onBack}
           style={{
-            background: "none", border: "none", cursor: "pointer", padding: 4,
-            display: "inline-flex", alignItems: "center",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 4,
+            display: "inline-flex",
+            alignItems: "center",
           }}
         >
-          <KIcon name="chevron" size={18} color="rgba(255,255,255,0.6)" style={{ transform: "rotate(180deg)" }} />
+          <KIcon
+            name="chevron"
+            size={18}
+            color="rgba(255,255,255,0.6)"
+            style={{ transform: "rotate(180deg)" }}
+          />
         </button>
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+          <span
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.5)",
+              letterSpacing: "0.05em",
+            }}
+          >
             Profile
           </span>
           {demo && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, letterSpacing: "0.14em",
-              color: "#0D0D0D", background: "#E0F479",
-              padding: "2px 6px", borderRadius: 4, textTransform: "uppercase",
-            }}>
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                color: "#0D0D0D",
+                background: "#E0F479",
+                padding: "2px 6px",
+                borderRadius: 4,
+                textTransform: "uppercase",
+              }}
+            >
               Demo
             </span>
           )}
@@ -219,17 +313,37 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
       </div>
 
       {/* Body */}
-      <div style={{ padding: "16px 18px 40px", display: "flex", flexDirection: "column", gap: 20 }}>
-
+      <div
+        style={{
+          padding: "16px 18px 40px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+      >
         {/* Avatar + identity */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+            paddingTop: 8,
+          }}
+        >
           <div
             onClick={handleAvatarTap}
             style={{
-              width: 80, height: 80, borderRadius: "50%",
+              width: 80,
+              height: 80,
+              borderRadius: "50%",
               background: avatarBg,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 32, fontWeight: 700, color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 32,
+              fontWeight: 700,
+              color: "#FFFFFF",
               letterSpacing: "-0.02em",
               userSelect: "none",
               cursor: "pointer",
@@ -240,7 +354,10 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
 
           {editingName ? (
             <form
-              onSubmit={(e) => { e.preventDefault(); saveName(); }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveName();
+              }}
               style={{ display: "flex", alignItems: "center", gap: 8 }}
             >
               <input
@@ -265,15 +382,27 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               />
             </form>
           ) : profileName ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
               <button
                 onClick={startEditing}
                 style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  padding: 0, fontFamily: "inherit",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  fontFamily: "inherit",
                 }}
               >
-                <span style={{ fontSize: 24, fontWeight: 700, color: "#FFFFFF" }}>
+                <span
+                  style={{ fontSize: 24, fontWeight: 700, color: "#FFFFFF" }}
+                >
                   {profileName}
                 </span>
               </button>
@@ -281,16 +410,25 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
                 <button
                   onClick={copyProfileLink}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 7,
-                    background: "none", border: "none", cursor: "pointer",
-                    padding: "2px 8px", borderRadius: 8,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "2px 8px",
+                    borderRadius: 8,
                     fontFamily: "inherit",
                   }}
                 >
-                  <span style={{
-                    fontSize: 13, color: "rgba(255,255,255,0.45)",
-                    fontVariantNumeric: "tabular-nums", letterSpacing: "0.02em",
-                  }}>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: "rgba(255,255,255,0.45)",
+                      fontVariantNumeric: "tabular-nums",
+                      letterSpacing: "0.02em",
+                    }}
+                  >
                     {ellipsify(address, 4)}
                   </span>
                   <KIcon name="share" size={12} color="rgba(255,255,255,0.3)" />
@@ -301,16 +439,25 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
             <button
               onClick={startEditing}
               style={{
-                display: "inline-flex", alignItems: "center", gap: 7,
-                background: "none", border: "none", cursor: "pointer",
-                padding: "4px 8px", borderRadius: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
+                borderRadius: 8,
                 fontFamily: "inherit",
               }}
             >
-              <span style={{
-                fontSize: 14, color: "rgba(255,255,255,0.7)",
-                fontVariantNumeric: "tabular-nums", letterSpacing: "0.02em",
-              }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.7)",
+                  fontVariantNumeric: "tabular-nums",
+                  letterSpacing: "0.02em",
+                }}
+              >
                 {ellipsify(address, 4)}
               </span>
               <KIcon name="share" size={13} color="rgba(255,255,255,0.4)" />
@@ -320,67 +467,150 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
 
         {/* KAD balance hero */}
         <div style={{ textAlign: "center", paddingBottom: 4 }}>
-          <div style={{
-            fontSize: 48, fontWeight: 700, color: "#FFFFFF",
-            letterSpacing: "-0.04em", lineHeight: 1,
-            fontVariantNumeric: "tabular-nums",
-          }}>
-            {totalKad.toFixed(2)} <span style={{ fontSize: 22, color: "rgba(255,255,255,0.45)", fontWeight: 600, letterSpacing: "0.05em" }}>KAD</span>
+          <div
+            style={{
+              fontSize: 48,
+              fontWeight: 700,
+              color: "#FFFFFF",
+              letterSpacing: "-0.04em",
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {totalKad.toFixed(2)}{" "}
+            <span
+              style={{
+                fontSize: 22,
+                color: "rgba(255,255,255,0.45)",
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+              }}
+            >
+              KAD
+            </span>
           </div>
-          <div style={{
-            fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 8,
-            letterSpacing: "0.05em",
-          }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.5)",
+              marginTop: 8,
+              letterSpacing: "0.05em",
+            }}
+          >
             Total earned
           </div>
         </div>
 
         {/* Level card */}
-        <div style={{
-          background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-          borderRadius: 16, padding: "16px 18px",
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
+        <div
+          style={{
+            background: "#1A1A1A",
+            border: "1px solid rgba(255,255,255,0.16)",
+            borderRadius: 16,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 12,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: "#FFFFFF",
+                letterSpacing: "-0.01em",
+              }}
+            >
               Level {level} · {levelTitle}
             </span>
-            <span style={{ fontSize: 14, color: "#E0F479", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+            <span
+              style={{
+                fontSize: 14,
+                color: "#E0F479",
+                fontVariantNumeric: "tabular-nums",
+                fontWeight: 600,
+              }}
+            >
               {levelXP} / 100 XP
             </span>
           </div>
-          <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
-            <div style={{
-              width: `${levelXP}%`, height: "100%",
-              background: "#E0F479", borderRadius: 3,
-              transition: "width 0.6s ease",
-            }} />
+          <div
+            style={{
+              height: 6,
+              borderRadius: 3,
+              background: "rgba(255,255,255,0.1)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${levelXP}%`,
+                height: "100%",
+                background: "#E0F479",
+                borderRadius: 3,
+                transition: "width 0.6s ease",
+              }}
+            />
           </div>
         </div>
 
         {/* Lifetime stats — 3 cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 10,
+          }}
+        >
           {[
             { label: "Total runs", value: String(totalRuns) },
-            { label: `Total ${unit}`, value: displayDist.toFixed(1), tap: true },
+            {
+              label: `Total ${unit}`,
+              value: displayDist.toFixed(1),
+              tap: true,
+            },
             { label: "Total time", value: fmtTotalTime(totalDurationSec) },
           ].map((s) => (
             <div
               key={s.label}
-              onClick={s.tap ? () => toggleUnit(unit === "km" ? "mi" : "km") : undefined}
+              onClick={
+                s.tap
+                  ? () => toggleUnit(unit === "km" ? "mi" : "km")
+                  : undefined
+              }
               style={{
-                background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-                borderRadius: 16, padding: 14,
+                background: "#1A1A1A",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 16,
+                padding: 14,
                 cursor: s.tap ? "pointer" : undefined,
               }}
             >
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 8, lineHeight: 1.3 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.5)",
+                  marginBottom: 8,
+                  lineHeight: 1.3,
+                }}
+              >
                 {s.label}
               </div>
-              <div style={{
-                fontSize: 28, fontWeight: 700, color: "#FFFFFF",
-                letterSpacing: "-0.04em", lineHeight: 1,
-                fontVariantNumeric: "tabular-nums",
-              }}>
+              <div
+                style={{
+                  fontSize: 28,
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  letterSpacing: "-0.04em",
+                  lineHeight: 1,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {s.value}
               </div>
             </div>
@@ -388,78 +618,161 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
         </div>
 
         {/* Streak card */}
-        <div style={{
-          background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-          borderRadius: 16, padding: "16px 18px",
-        }}>
-          <div style={{
-            fontSize: 11, textTransform: "uppercase", letterSpacing: "0.18em",
-            color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 8,
-          }}>
+        <div
+          style={{
+            background: "#1A1A1A",
+            border: "1px solid rgba(255,255,255,0.16)",
+            borderRadius: 16,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.18em",
+              color: "rgba(255,255,255,0.5)",
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
             Current streak
           </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14 }}>
-            <span style={{
-              fontSize: 32, fontWeight: 700, color: "#FFFFFF",
-              fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em", lineHeight: 1,
-            }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: "#FFFFFF",
+                fontVariantNumeric: "tabular-nums",
+                letterSpacing: "-0.03em",
+                lineHeight: 1,
+              }}
+            >
               {streak}
             </span>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+            <span
+              style={{
+                fontSize: 14,
+                color: "rgba(255,255,255,0.5)",
+                fontWeight: 500,
+              }}
+            >
               {streak === 1 ? "week" : "weeks"}
             </span>
             {multiplier > 1 && (
-              <span style={{ marginLeft: "auto", fontSize: 11, color: "#E0F479", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 11,
+                  color: "#E0F479",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                }}
+              >
                 {multiplier}× boost
               </span>
             )}
           </div>
           <div style={{ display: "flex", gap: 4 }}>
             {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} style={{
-                flex: 1, height: 6, borderRadius: 3,
-                background: i < runsThisWeek ? "#E0F479" : i < weeklyGoal ? "rgba(224,244,121,0.3)" : "rgba(224,244,121,0.1)",
-              }} />
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: 6,
+                  borderRadius: 3,
+                  background:
+                    i < runsThisWeek
+                      ? "#E0F479"
+                      : i < weeklyGoal
+                        ? "rgba(224,244,121,0.3)"
+                        : "rgba(224,244,121,0.1)",
+                }}
+              />
             ))}
           </div>
         </div>
 
         {/* Fires this week */}
-        <div style={{
-          background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-          borderRadius: 16, padding: "14px 18px",
-          display: "flex", alignItems: "center", gap: 12,
-        }}>
+        <div
+          style={{
+            background: "#1A1A1A",
+            border: "1px solid rgba(255,255,255,0.16)",
+            borderRadius: 16,
+            padding: "14px 18px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
           <KIcon name="flame" size={20} color="#E0F479" />
-          <span style={{
-            fontSize: 15, fontWeight: 600,
-            color: weeklyFiresReceived > 0 ? "#FFFFFF" : "rgba(255,255,255,0.4)",
-          }}>
-            {weeklyFiresReceived} fire{weeklyFiresReceived !== 1 ? "s" : ""} this week
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color:
+                weeklyFiresReceived > 0 ? "#FFFFFF" : "rgba(255,255,255,0.4)",
+            }}
+          >
+            {weeklyFiresReceived} fire{weeklyFiresReceived !== 1 ? "s" : ""}{" "}
+            this week
           </span>
         </div>
 
         {/* Badges */}
         <div>
-          <h3 style={{
-            fontSize: 20, fontWeight: 600, color: "#FFFFFF",
-            margin: "0 0 12px", letterSpacing: "-0.01em",
-          }}>
+          <h3
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              color: "#FFFFFF",
+              margin: "0 0 12px",
+              letterSpacing: "-0.01em",
+            }}
+          >
             Badges
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400, marginLeft: 8 }}>
+            <span
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,0.4)",
+                fontWeight: 400,
+                marginLeft: 8,
+              }}
+            >
               {badges.filter((b) => b.earned).length} / {badges.length}
             </span>
           </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 8,
+            }}
+          >
             {badges.map((b) => (
               <div
                 key={b.id}
                 title={b.desc}
                 style={{
-                  aspectRatio: "1", borderRadius: 14,
-                  display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center", gap: 6,
-                  background: b.earned ? "rgba(224,244,121,0.08)" : "transparent",
+                  aspectRatio: "1",
+                  borderRadius: 14,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: b.earned
+                    ? "rgba(224,244,121,0.08)"
+                    : "transparent",
                   border: `1px solid ${b.earned ? "#E0F479" : "rgba(255,255,255,0.2)"}`,
                   padding: "0 4px",
                 }}
@@ -469,11 +782,17 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
                   size={22}
                   color={b.earned ? "#E0F479" : "rgba(255,255,255,0.25)"}
                 />
-                <span style={{
-                  fontSize: 9, textAlign: "center",
-                  color: b.earned ? "rgba(224,244,121,0.9)" : "rgba(255,255,255,0.35)",
-                  letterSpacing: "0.04em", lineHeight: 1.15,
-                }}>
+                <span
+                  style={{
+                    fontSize: 9,
+                    textAlign: "center",
+                    color: b.earned
+                      ? "rgba(224,244,121,0.9)"
+                      : "rgba(255,255,255,0.35)",
+                    letterSpacing: "0.04em",
+                    lineHeight: 1.15,
+                  }}
+                >
                   {b.label}
                 </span>
               </div>
@@ -483,43 +802,104 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
 
         {/* Trophy Cabinet */}
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-            <span style={{ fontSize: 20, fontWeight: 600, color: "#FFFFFF" }}>Trophy Cabinet</span>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 12,
+            }}
+          >
+            <span style={{ fontSize: 20, fontWeight: 600, color: "#FFFFFF" }}>
+              Trophy Cabinet
+            </span>
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
               {trophies.length} race{trophies.length !== 1 ? "s" : ""}
             </span>
           </div>
 
           {trophies.length === 0 ? (
-            <div style={{
-              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-              borderRadius: 16, padding: "32px 16px", textAlign: "center",
-            }}>
+            <div
+              style={{
+                background: "#1A1A1A",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 16,
+                padding: "32px 16px",
+                textAlign: "center",
+              }}
+            >
               <KIcon name="route" size={32} color="rgba(255,255,255,0.2)" />
-              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 12 }}>No races yet</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.4)",
+                  marginTop: 12,
+                }}
+              >
+                No races yet
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.25)",
+                  marginTop: 4,
+                }}
+              >
                 Enter a Flash Run to earn trophies
               </div>
             </div>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 10,
+                  marginBottom: 12,
+                }}
+              >
                 {[
                   { value: String(trophies.length), label: "Races entered" },
-                  { value: String(trophies.filter(t => t.position <= 3).length), label: "Podium finishes" },
-                  { value: positionStr(Math.min(...trophies.map(t => t.position))), label: "Best finish" },
+                  {
+                    value: String(
+                      trophies.filter((t) => t.position <= 3).length
+                    ),
+                    label: "Podium finishes",
+                  },
+                  {
+                    value: positionStr(
+                      Math.min(...trophies.map((t) => t.position))
+                    ),
+                    label: "Best finish",
+                  },
                 ].map((s) => (
-                  <div key={s.label} style={{
-                    background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-                    borderRadius: 16, padding: 12,
-                  }}>
-                    <div style={{
-                      fontSize: 24, fontWeight: 700, color: "#FFFFFF",
-                      letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums",
-                    }}>
+                  <div
+                    key={s.label}
+                    style={{
+                      background: "#1A1A1A",
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      borderRadius: 16,
+                      padding: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 700,
+                        color: "#FFFFFF",
+                        letterSpacing: "-0.03em",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {s.value}
                     </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "rgba(255,255,255,0.5)",
+                        marginTop: 6,
+                      }}
+                    >
                       {s.label}
                     </div>
                   </div>
@@ -527,15 +907,39 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
               </div>
 
               {trophies.slice(0, 10).map((t) => (
-                <div key={t.id} style={{
-                  background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-                  borderRadius: 16, padding: 16, marginBottom: 8,
-                  display: "flex", alignItems: "center", gap: 14,
-                }}>
-                  <span style={{ fontSize: 28 }}>{trophyMedal(t.position)}</span>
+                <div
+                  key={t.id}
+                  style={{
+                    background: "#1A1A1A",
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                  }}
+                >
+                  <span style={{ fontSize: 28 }}>
+                    {trophyMedal(t.position)}
+                  </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#FFFFFF" }}>{t.eventName}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      {t.eventName}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "rgba(255,255,255,0.4)",
+                        marginTop: 2,
+                      }}
+                    >
                       {fmtTrophyDate(t.date)}
                     </div>
                   </div>
@@ -543,10 +947,15 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
                     <div style={{ fontSize: 14, color: "#FFFFFF" }}>
                       {positionStr(t.position)} / {t.totalRunners}
                     </div>
-                    <div style={{
-                      fontSize: 13, marginTop: 2, fontWeight: 600,
-                      color: t.kadWon > 0 ? "#E0F479" : "rgba(255,255,255,0.4)",
-                    }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        marginTop: 2,
+                        fontWeight: 600,
+                        color:
+                          t.kadWon > 0 ? "#E0F479" : "rgba(255,255,255,0.4)",
+                      }}
+                    >
                       {t.kadWon > 0 ? `+${t.kadWon} KAD` : "Finished"}
                     </div>
                   </div>
@@ -560,10 +969,16 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
         <button
           onClick={onHistory}
           style={{
-            width: "100%", height: 56, borderRadius: 16,
-            background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-            cursor: "pointer", padding: "0 18px",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
+            width: "100%",
+            height: 56,
+            borderRadius: 16,
+            background: "#1A1A1A",
+            border: "1px solid rgba(255,255,255,0.16)",
+            cursor: "pointer",
+            padding: "0 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
             fontFamily: "inherit",
           }}
         >
@@ -580,15 +995,26 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
         <button
           onClick={disconnect}
           style={{
-            width: "100%", height: 56, borderRadius: 16,
+            width: "100%",
+            height: 56,
+            borderRadius: 16,
             background: "transparent",
             border: "1px solid rgba(255,80,80,0.25)",
-            cursor: "pointer", padding: "0 18px",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            padding: "0 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             fontFamily: "inherit",
           }}
         >
-          <span style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,80,80,0.8)" }}>
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: "rgba(255,80,80,0.8)",
+            }}
+          >
             Disconnect wallet
           </span>
         </button>

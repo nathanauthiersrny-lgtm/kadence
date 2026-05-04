@@ -25,6 +25,9 @@ const WS_URLS: Record<ClusterMoniker, string> = {
 };
 
 export function getClusterUrl(cluster: ClusterMoniker) {
+  if (cluster === "devnet" && process.env.NEXT_PUBLIC_RPC_URL) {
+    return process.env.NEXT_PUBLIC_RPC_URL;
+  }
   return CLUSTER_URLS[cluster];
 }
 

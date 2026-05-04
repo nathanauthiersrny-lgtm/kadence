@@ -15,7 +15,7 @@ export function useChainSync(walletAddress?: Address) {
   const { data, isLoading, mutate } = useSWR<ChainRun[]>(
     walletAddress ? (["chain-runs", cluster, walletAddress] as const) : null,
     async ([, , addr]) => fetchChainRuns(client, addr as Address),
-    { revalidateOnFocus: false, revalidateOnReconnect: true },
+    { revalidateOnFocus: false, revalidateOnReconnect: true }
   );
 
   return {

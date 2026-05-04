@@ -114,7 +114,7 @@ function getWeekKey(): string {
   const d = new Date();
   const jan1 = new Date(d.getFullYear(), 0, 1);
   const week = Math.ceil(
-    ((d.getTime() - jan1.getTime()) / 86_400_000 + jan1.getDay() + 1) / 7,
+    ((d.getTime() - jan1.getTime()) / 86_400_000 + jan1.getDay() + 1) / 7
   );
   return `${d.getFullYear()}-W${week}`;
 }
@@ -137,12 +137,14 @@ function getUserWeekContribution(): { km: number; runCount: number } {
     const raw = localStorage.getItem("kadence_runs");
     if (!raw) return { km: 0, runCount: 0 };
     const runs = JSON.parse(raw) as { date: string; distance: number }[];
-    const weekRuns = runs.filter(r => new Date(r.date) >= monday);
+    const weekRuns = runs.filter((r) => new Date(r.date) >= monday);
     return {
-      km: weekRuns.reduce((s, r) => s + (r.distance / 1000), 0),
+      km: weekRuns.reduce((s, r) => s + r.distance / 1000, 0),
       runCount: weekRuns.length,
     };
-  } catch { return { km: 0, runCount: 0 }; }
+  } catch {
+    return { km: 0, runCount: 0 };
+  }
 }
 
 // --- Auto-assign: compute suggested tier from recent run history ---
@@ -150,7 +152,8 @@ function getUserWeekContribution(): { km: number; runCount: number } {
 function computeSuggestedTier(runs: RunEntry[]): CommunityTier | null {
   if (runs.length < 3) return null;
   const recent = runs.slice(-5);
-  const avgPace = recent.reduce((s, r) => s + r.paceSecPerKm, 0) / recent.length;
+  const avgPace =
+    recent.reduce((s, r) => s + r.paceSecPerKm, 0) / recent.length;
   const avgDist = recent.reduce((s, r) => s + r.distanceKm, 0) / recent.length;
   // Regular: avg pace < 7:00/km (420 s) AND avg distance ≥ 5 km
   return avgPace < 420 && avgDist >= 5 ? "regular" : "starter";
@@ -161,14 +164,51 @@ function computeSuggestedTier(runs: RunEntry[]): CommunityTier | null {
 function getWeeklyChallenge(): Community["challenge"] {
   const d = new Date();
   const jan1 = new Date(d.getFullYear(), 0, 1);
-  const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86_400_000 + jan1.getDay() + 1) / 7);
+  const week = Math.ceil(
+    ((d.getTime() - jan1.getTime()) / 86_400_000 + jan1.getDay() + 1) / 7
+  );
   const rotation = week % 4;
   switch (rotation) {
-    case 0: return { type: "collective_km", target: 50, label: "Group covers 50 km together", bonusKad: 10, bonusBaseUnits: 10_000_000 };
-    case 1: return { type: "min_runs", target: 3, label: "Everyone runs at least 3 times", bonusKad: 5, bonusBaseUnits: 5_000_000 };
-    case 2: return { type: "collective_km", target: 75, label: "Group covers 75 km together", bonusKad: 15, bonusBaseUnits: 15_000_000 };
-    case 3: return { type: "min_runs", target: 5, label: "Complete 5 runs as a group", bonusKad: 8, bonusBaseUnits: 8_000_000 };
-    default: return { type: "collective_km", target: 50, label: "Group covers 50 km together", bonusKad: 10, bonusBaseUnits: 10_000_000 };
+    case 0:
+      return {
+        type: "collective_km",
+        target: 50,
+        label: "Group covers 50 km together",
+        bonusKad: 10,
+        bonusBaseUnits: 10_000_000,
+      };
+    case 1:
+      return {
+        type: "min_runs",
+        target: 3,
+        label: "Everyone runs at least 3 times",
+        bonusKad: 5,
+        bonusBaseUnits: 5_000_000,
+      };
+    case 2:
+      return {
+        type: "collective_km",
+        target: 75,
+        label: "Group covers 75 km together",
+        bonusKad: 15,
+        bonusBaseUnits: 15_000_000,
+      };
+    case 3:
+      return {
+        type: "min_runs",
+        target: 5,
+        label: "Complete 5 runs as a group",
+        bonusKad: 8,
+        bonusBaseUnits: 8_000_000,
+      };
+    default:
+      return {
+        type: "collective_km",
+        target: 50,
+        label: "Group covers 50 km together",
+        bonusKad: 10,
+        bonusBaseUnits: 10_000_000,
+      };
   }
 }
 
@@ -182,11 +222,17 @@ function seededRandom(seed: number): number {
 function simulatedGroupKm(
   community: Community,
   _weekKey: string,
-  myKm: number,
+  myKm: number
 ): number {
   const dow = new Date().getDay();
   const dayScales: Record<number, number> = {
-    1: 0.08, 2: 0.20, 3: 0.35, 4: 0.50, 5: 0.65, 6: 0.80, 0: 0.92,
+    1: 0.08,
+    2: 0.2,
+    3: 0.35,
+    4: 0.5,
+    5: 0.65,
+    6: 0.8,
+    0: 0.92,
   };
   const scale = dayScales[dow] ?? 0.5;
   const target = community.challenge.target;
@@ -198,8 +244,28 @@ function simulatedGroupKm(
 
 // --- Auto-generated activity feed ---
 
-const ROAD_NAMES = ["Alex", "Sam", "Jordan", "Casey", "Morgan", "Riley", "Quinn", "Taylor", "Drew", "Avery"];
-const TRAIL_NAMES = ["Blake", "Sage", "River", "Cedar", "Wren", "Scout", "Ash", "Forest"];
+const ROAD_NAMES = [
+  "Alex",
+  "Sam",
+  "Jordan",
+  "Casey",
+  "Morgan",
+  "Riley",
+  "Quinn",
+  "Taylor",
+  "Drew",
+  "Avery",
+];
+const TRAIL_NAMES = [
+  "Blake",
+  "Sage",
+  "River",
+  "Cedar",
+  "Wren",
+  "Scout",
+  "Ash",
+  "Forest",
+];
 
 function formatFeedTime(hoursAgo: number): string {
   if (hoursAgo < 1) return `${Math.round(hoursAgo * 60)}m ago`;
@@ -226,7 +292,9 @@ function generateFeed(community: Community, myKm: number): FeedMessage[] {
 
   const names = community.type === "trail" ? TRAIL_NAMES : ROAD_NAMES;
   const seed = community.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const daySeed = todayStr().split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const daySeed = todayStr()
+    .split("")
+    .reduce((a, c) => a + c.charCodeAt(0), 0);
 
   const templates = [
     (n: string, km: string) => `${n} ran ${km} km`,
@@ -238,10 +306,14 @@ function generateFeed(community: Community, myKm: number): FeedMessage[] {
   const hoursOffsets = [2, 4, 6, 18, 22, 36, 60];
 
   for (let i = 0; i < 7; i++) {
-    const name = names[Math.floor(seededRandom(seed + i + daySeed) * names.length)];
+    const name =
+      names[Math.floor(seededRandom(seed + i + daySeed) * names.length)];
     const km = (2 + seededRandom(seed + i * 3 + daySeed) * 8).toFixed(1);
     const time = formatFeedTime(hoursOffsets[i]);
-    const tpl = templates[Math.floor(seededRandom(seed + i * 11 + daySeed) * templates.length)];
+    const tpl =
+      templates[
+        Math.floor(seededRandom(seed + i * 11 + daySeed) * templates.length)
+      ];
 
     messages.push({ id: `feed-${i}`, text: tpl(name, km), time });
   }
@@ -262,7 +334,9 @@ function loadWeekProgress(): WeekProgress {
       const p: WeekProgress = JSON.parse(raw);
       if (p.weekKey === getWeekKey()) return p;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { weekKey: getWeekKey(), myRunCount: 0, myKm: 0, claimed: false };
 }
 
@@ -292,7 +366,9 @@ function loadRunHistory(): RunEntry[] {
   try {
     const raw = localStorage.getItem(KEY_RUN_HISTORY);
     if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return [];
 }
 
@@ -302,7 +378,8 @@ export function useCommunity(): CommunityState {
     return localStorage.getItem(KEY_JOINED);
   });
   const [runHistory, setRunHistory] = useState<RunEntry[]>(loadRunHistory);
-  const [weekProgress, setWeekProgress] = useState<WeekProgress>(loadWeekProgress);
+  const [weekProgress, setWeekProgress] =
+    useState<WeekProgress>(loadWeekProgress);
 
   const joinCommunity = useCallback((id: string) => {
     localStorage.setItem(KEY_JOINED, id);
@@ -331,7 +408,7 @@ export function useCommunity(): CommunityState {
         return updated;
       });
     },
-    [runHistory],
+    [runHistory]
   );
 
   const markClaimed = useCallback(() => {
@@ -359,13 +436,16 @@ export function useCommunity(): CommunityState {
   let challengeComplete = false;
   if (joinedCommunity && !weekProgress.claimed) {
     if (joinedCommunity.challenge.type === "min_runs") {
-      challengeComplete = userContrib.runCount >= joinedCommunity.challenge.target;
+      challengeComplete =
+        userContrib.runCount >= joinedCommunity.challenge.target;
     } else {
       challengeComplete = collectiveKm >= joinedCommunity.challenge.target;
     }
   }
 
-  const feed = joinedCommunity ? generateFeed(joinedCommunity, userContrib.km) : [];
+  const feed = joinedCommunity
+    ? generateFeed(joinedCommunity, userContrib.km)
+    : [];
 
   const effectiveWeekProgress: WeekProgress = {
     ...weekProgress,

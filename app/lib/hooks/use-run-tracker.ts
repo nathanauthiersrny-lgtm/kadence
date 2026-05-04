@@ -14,6 +14,7 @@ export type RunResult = {
 export type RunTrackerReturn = {
   isRunning: boolean;
   isPaused: boolean;
+  isWarmingUp: boolean;
   distanceMeters: number;
   durationSeconds: number;
   speedKmh: number;
@@ -50,6 +51,7 @@ export function useRunTracker(): RunTrackerReturn {
   const [speedKmh, setSpeedKmh] = useState(0);
   const [route, setRoute] = useState<LatLon[]>([]);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -62,6 +64,7 @@ export function useRunTracker(): RunTrackerReturn {
   const pauseStartRef = useRef<number | null>(null);
   // Mutable flag so the GPS watchPosition callback can check it synchronously.
   const isPausedRef = useRef(false);
+  const warmupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -74,7 +77,9 @@ export function useRunTracker(): RunTrackerReturn {
     clearTimer();
     timerRef.current = setInterval(() => {
       setDurationSeconds(
-        Math.floor((Date.now() - startTimeRef.current - pausedMsRef.current) / 1_000),
+        Math.floor(
+          (Date.now() - startTimeRef.current - pausedMsRef.current) / 1_000
+        )
       );
     }, 1_000);
   }, [clearTimer]);
@@ -83,6 +88,10 @@ export function useRunTracker(): RunTrackerReturn {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
+    }
+    if (warmupTimerRef.current !== null) {
+      clearTimeout(warmupTimerRef.current);
+      warmupTimerRef.current = null;
     }
     clearTimer();
   }, [clearTimer]);
@@ -105,6 +114,11 @@ export function useRunTracker(): RunTrackerReturn {
     setGeoError(null);
     setIsRunning(true);
     setIsPaused(false);
+    setIsWarmingUp(true);
+    warmupTimerRef.current = setTimeout(
+      () => setIsWarmingUp(false),
+      GPS_WARMUP_MS
+    );
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
@@ -116,7 +130,10 @@ export function useRunTracker(): RunTrackerReturn {
 
         if (pos.coords.accuracy > 30) return;
 
-        const point: LatLon = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        const point: LatLon = {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+        };
 
         if (pos.coords.speed != null && pos.coords.speed >= 0) {
           setSpeedKmh(pos.coords.speed * 3.6);
@@ -137,7 +154,7 @@ export function useRunTracker(): RunTrackerReturn {
         setIsRunning(false);
         clearTracking();
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 }
     );
 
     startTimer();
@@ -170,10 +187,13 @@ export function useRunTracker(): RunTrackerReturn {
       totalPausedMs += Date.now() - pauseStartRef.current;
     }
     const distance = BigInt(Math.round(distanceRef.current));
-    const duration = BigInt(Math.floor((Date.now() - startTimeRef.current - totalPausedMs) / 1_000));
+    const duration = BigInt(
+      Math.floor((Date.now() - startTimeRef.current - totalPausedMs) / 1_000)
+    );
     clearTracking();
     setIsRunning(false);
     setIsPaused(false);
+    setIsWarmingUp(false);
     isPausedRef.current = false;
     return { distance, duration };
   }, [clearTracking]);
@@ -185,6 +205,7 @@ export function useRunTracker(): RunTrackerReturn {
   return {
     isRunning,
     isPaused,
+    isWarmingUp,
     distanceMeters,
     durationSeconds,
     speedKmh,

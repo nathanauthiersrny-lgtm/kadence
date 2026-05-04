@@ -42,6 +42,7 @@ The global running market has over 50 million active runners worldwide. Existing
 Kadence is built for runners first. The Web3 layer is invisible — no crypto jargon, no confusing wallet flows, no barrier to entry. Solana enables this: transactions confirm in 400ms for fractions of a cent, making micro-rewards per run economically viable.
 
 **Three things that make Kadence different:**
+
 - Real GPS tracking, not step counting
 - Community challenges with on-chain token rewards
 - Synchronized virtual races anyone can join from anywhere
@@ -63,14 +64,18 @@ Already in the Solana ecosystem, looking for utility beyond trading. Motivated b
 ### MVP — Core Pillars (P1)
 
 #### 1. GPS Tracker
+
 Records running sessions via browser Geolocation API.
+
 - Real-time distance calculation using Haversine formula
 - GPS noise filter (ignores segments under 1m jitter or over 50m/s — impossible running speed)
 - Live stats during run: distance, pace, duration
 - Post-run map reveal using Leaflet
 
 #### 2. KAD Token Rewards
+
 Every completed run earns KAD tokens proportional to distance.
+
 - Reward formula: 1 KAD per kilometer
 - Minted on-chain via SPL token program
 - Pace floor validation: minimum 60 sec/km (anti-spoofing)
@@ -78,7 +83,9 @@ Every completed run earns KAD tokens proportional to distance.
 - Overflow-safe arithmetic throughout
 
 #### 3. Communities + Challenges
+
 Runners join groups based on level and run type.
+
 - Four levels: Starter / Regular / Advanced / Elite
 - Four run types: Road / Trail / Track / Casual
 - Weekly shared challenges per community
@@ -86,7 +93,9 @@ Runners join groups based on level and run type.
 - Auto-assign community based on first runs
 
 #### 4. Virtual Race Events
+
 Synchronized global races, validated on-chain.
+
 - Fixed start time, open to all runners worldwide
 - Runner stakes KAD to enter
 - On-chain validation of distance and pace
@@ -104,19 +113,19 @@ Synchronized global races, validated on-chain.
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14, Tailwind CSS |
-| Solana SDK | @solana/react-hooks, @solana/kit |
-| Smart Contracts | Anchor (Rust) |
-| Token Standard | SPL Token |
-| Client Generation | Kodama (from Anchor IDL) |
-| Local Validator | Surfpool |
-| GPS | Browser Geolocation API |
-| Map | Leaflet + CartoDB Dark tiles |
-| Database | Supabase (communities, challenges) |
-| Deploy | Vercel (frontend) |
-| Wallet | Phantom |
+| Layer             | Technology                         |
+| ----------------- | ---------------------------------- |
+| Frontend          | Next.js 14, Tailwind CSS           |
+| Solana SDK        | @solana/react-hooks, @solana/kit   |
+| Smart Contracts   | Anchor (Rust)                      |
+| Token Standard    | SPL Token                          |
+| Client Generation | Kodama (from Anchor IDL)           |
+| Local Validator   | Surfpool                           |
+| GPS               | Browser Geolocation API            |
+| Map               | Leaflet + CartoDB Dark tiles       |
+| Database          | Supabase (communities, challenges) |
+| Deploy            | Vercel (frontend)                  |
+| Wallet            | Phantom                            |
 
 ---
 
@@ -137,16 +146,18 @@ kadence/
 
 **Instructions:**
 
-| Instruction | Accounts | What it does |
-|---|---|---|
-| `initialize` | payer, mint PDA, mint_authority PDA | Creates the KAD SPL token mint once |
-| `complete_run` | runner, mint PDA, runner ATA, mint_authority PDA | Validates run, mints KAD reward |
+| Instruction    | Accounts                                         | What it does                        |
+| -------------- | ------------------------------------------------ | ----------------------------------- |
+| `initialize`   | payer, mint PDA, mint_authority PDA              | Creates the KAD SPL token mint once |
+| `complete_run` | runner, mint PDA, runner ATA, mint_authority PDA | Validates run, mints KAD reward     |
 
 **PDA Layout:**
+
 - `[b"kad-mint"]` → KAD token mint (6 decimals, deterministic address)
 - `[b"mint-authority"]` → Signs all mint_to CPIs (no stored data)
 
 **Validations:**
+
 - Distance: 100m minimum, 100km maximum
 - Duration: must be positive
 - Pace floor: minimum 60 sec/km (anti-spoofing)
@@ -171,6 +182,7 @@ app/
 ```
 
 **State machine:**
+
 ```
 IDLE → RUNNING → POST_RUN → CLAIMED
 ```
@@ -180,6 +192,7 @@ IDLE → RUNNING → POST_RUN → CLAIMED
 ## Design System
 
 ### Colors
+
 ```
 Background:     #0D0D0D  (off-black, never pure black)
 Card:           #1A1A1A
@@ -192,6 +205,7 @@ Text Secondary: #E0F479
 ```
 
 ### Typography
+
 ```
 Font:           DM Sans (Google Fonts)
 Hero numbers:   700 weight, 80px  (timer, distance)
@@ -202,6 +216,7 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 ```
 
 ### Principles
+
 - Two colors only — `#0D0D0D` and `#E0F479`
 - No gradients (except map route polyline)
 - No crypto jargon visible to users
@@ -212,23 +227,26 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 
 ## What's Built
 
-*Status as of end of Week 2 (April 2026)*
+_Status as of end of Week 2 (April 2026)_
 
 ### ✅ Completed
 
 **Solana Program**
+
 - `initialize` instruction — KAD mint created on-chain
 - `complete_run` instruction — validates and mints tokens
 - 5/5 LiteSVM tests passing
 - Deployed and tested on localnet and devnet
 
 **GPS Tracking**
+
 - `useRunTracker` hook with `startRun()` / `stopRun()`
 - Haversine distance calculation
 - GPS noise filter (jitter + impossible speed)
 - Live stats: distance, pace, duration, projected KAD
 
 **Frontend**
+
 - Full UI matching Photoshop mockups
 - DM Sans font, lime/dark color system
 - Active run screen with live KAD ticker
@@ -239,6 +257,7 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 - Error messages mapped to human-readable strings
 
 **Infrastructure**
+
 - GitHub repo public from day 1
 - Surfpool local validator
 - Devnet deployment working
@@ -257,6 +276,7 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 ## What's Planned
 
 ### Week 3 — Communities + Virtual Races
+
 - Community join flow (level + run type selection)
 - Weekly challenge display and progress
 - Bonus KAD distribution for challenge completion
@@ -264,6 +284,7 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 - On-chain race validation and prize distribution
 
 ### Week 4 — Polish + Integration
+
 - Full UI consistency pass
 - End-to-end testing of all flows
 - Vercel deployment on devnet
@@ -271,6 +292,7 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 - Performance optimization
 
 ### Week 5 — Submission
+
 - Demo video (3 minutes max, Loom)
 - Written pitch covering:
   - Team background
@@ -285,14 +307,17 @@ Buttons:        700 weight, 18-22px, ALL CAPS
 ## Business Model
 
 **Freemium**
+
 - Free: unlimited runs, earn KAD, join communities
 - Premium: advanced stats, custom challenges, priority race entry
 
 **Paid Race Entries**
+
 - Virtual races charge an entry fee in KAD
 - Protocol takes a small percentage of each prize pool
 
 **Future: Local Legend Segments**
+
 - Territory-based challenges with staking mechanics
 - Segment defenders earn passive KAD from challengers
 
@@ -321,6 +346,7 @@ Q4 2026     ──  Public mainnet launch
 ## Known Limitations
 
 **Current MVP limitations:**
+
 - Browser GPS is less accurate than native app GPS — works well outdoors, unreliable indoors
 - App does not run in background — screen must stay on during runs
 - Devnet only — no real token value yet
@@ -328,10 +354,10 @@ Q4 2026     ──  Public mainnet launch
 - Single builder — no team redundancy
 
 **Technical debt to address post-hackathon:**
+
 - Rebuild with React Native for proper background GPS
 - Add Supabase auth for persistent user profiles
 - Harden smart contract with security audit before mainnet
 - Implement proper key management for production
 
 ---
-
