@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 // --- Types ---
 
@@ -287,27 +287,22 @@ export type CommunityState = {
   markClaimed: () => void;
 };
 
+function loadRunHistory(): RunEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(KEY_RUN_HISTORY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
+}
+
 export function useCommunity(): CommunityState {
-  const [joinedId, setJoinedId] = useState<string | null>(null);
-  const [runHistory, setRunHistory] = useState<RunEntry[]>([]);
-  const [weekProgress, setWeekProgress] = useState<WeekProgress>({
-    weekKey: getWeekKey(),
-    myRunCount: 0,
-    myKm: 0,
-    claimed: false,
+  const [joinedId, setJoinedId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(KEY_JOINED);
   });
-
-  useEffect(() => {
-    const joined = localStorage.getItem(KEY_JOINED);
-    if (joined) setJoinedId(joined);
-
-    try {
-      const raw = localStorage.getItem(KEY_RUN_HISTORY);
-      if (raw) setRunHistory(JSON.parse(raw));
-    } catch { /* ignore */ }
-
-    setWeekProgress(loadWeekProgress());
-  }, []);
+  const [runHistory, setRunHistory] = useState<RunEntry[]>(loadRunHistory);
+  const [weekProgress, setWeekProgress] = useState<WeekProgress>(loadWeekProgress);
 
   const joinCommunity = useCallback((id: string) => {
     localStorage.setItem(KEY_JOINED, id);

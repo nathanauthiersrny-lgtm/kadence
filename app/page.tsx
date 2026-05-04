@@ -18,7 +18,12 @@ import { ActivityScreen } from "./components/activity-screen";
 import { ProfileScreen } from "./components/profile-screen";
 import { RunGoalModal } from "./components/run-goal-modal";
 import { useCommunity, COMMUNITIES } from "./lib/hooks/use-community";
-import { useFlashRun, getActiveBoost, type FlashRun, type RaceResult } from "./lib/hooks/use-flash-run";
+import {
+  useFlashRun,
+  getActiveBoost,
+  type FlashRun,
+  type RaceResult,
+} from "./lib/hooks/use-flash-run";
 import { useRunHistory } from "./lib/hooks/use-run-history";
 import { useChainSync } from "./lib/hooks/use-chain-sync";
 import { useSocialFeed } from "./lib/hooks/use-social-feed";
@@ -44,12 +49,21 @@ function saveTrophy(trophy: Trophy) {
     const trophies: Trophy[] = raw ? JSON.parse(raw) : [];
     trophies.unshift(trophy);
     localStorage.setItem(TROPHIES_KEY, JSON.stringify(trophies));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 type RunGoal = { distanceKm: number; timeMinutes: number };
 
-type View = "home" | "running" | "post-run" | "community" | "flash-runs" | "history" | "profile";
+type View =
+  | "home"
+  | "running"
+  | "post-run"
+  | "community"
+  | "flash-runs"
+  | "history"
+  | "profile";
 
 type RunSnapshot = {
   distanceMeters: number;
@@ -83,12 +97,21 @@ export default function Page() {
   const { multiplier } = useStreak();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { addRunContribution } = useCommunity();
-  const joinedCommunityId = typeof window !== "undefined" ? localStorage.getItem("kad_community_joined") : null;
-  const joinedCommunity = COMMUNITIES.find(c => c.id === joinedCommunityId) ?? null;
+  const joinedCommunityId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("kad_community_joined")
+      : null;
+  const joinedCommunity =
+    COMMUNITIES.find((c) => c.id === joinedCommunityId) ?? null;
   const { submitResult } = useFlashRun();
-  const { chainRuns, syncing: chainSyncing, syncNow: chainSyncNow } = useChainSync(wallet?.account.address);
+  const {
+    chainRuns,
+    syncing: chainSyncing,
+    syncNow: chainSyncNow,
+  } = useChainSync(wallet?.account.address);
   const { saveRun, updateRunTx } = useRunHistory(chainRuns);
   const socialFeed = useSocialFeed(joinedCommunity?.id ?? null);
+  const { socialMultiplier } = socialFeed;
   const [isShared, setIsShared] = useState(false);
 
   const handleStart = useCallback(() => {
@@ -116,25 +139,42 @@ export default function Page() {
   }, []);
 
   const handleEnd = useCallback(
-    (result: RunResult, snapshot: { distanceMeters: number; durationSeconds: number; reachedSprint: boolean; routeCoords: LatLon[] }) => {
+    (
+      result: RunResult,
+      snapshot: {
+        distanceMeters: number;
+        durationSeconds: number;
+        reachedSprint: boolean;
+        routeCoords: LatLon[];
+      }
+    ) => {
       let raceResult: RaceResult | undefined;
       let savedRunId: string | undefined;
       try {
         if (activeFlashRun) {
-          raceResult = submitResult(activeFlashRun.id, snapshot.distanceMeters, snapshot.durationSeconds);
+          raceResult = submitResult(
+            activeFlashRun.id,
+            snapshot.distanceMeters,
+            snapshot.durationSeconds
+          );
         }
         const distKm = snapshot.distanceMeters / 1000;
-        const paceSecPerKm = snapshot.distanceMeters > 0
-          ? (snapshot.durationSeconds / snapshot.distanceMeters) * 1000
-          : 0;
+        const paceSecPerKm =
+          snapshot.distanceMeters > 0
+            ? (snapshot.durationSeconds / snapshot.distanceMeters) * 1000
+            : 0;
 
         const baseKAD = distKm;
         const boost = getActiveBoost();
         const boostMult = boost?.multiplier ?? 1;
         const boostName = boost?.eventName ?? null;
-        const underdogMult = (raceResult && !raceResult.dnf && raceResult.position >= 4) ? 1.2 : 1;
-        const socialMult = socialFeed.socialMultiplier;
-        const finalKAD = Math.round(baseKAD * multiplier * boostMult * underdogMult * socialMult * 100) / 100;
+        const underdogMult =
+          raceResult && !raceResult.dnf && raceResult.position >= 4 ? 1.2 : 1;
+        const socialMult = socialMultiplier;
+        const finalKAD =
+          Math.round(
+            baseKAD * multiplier * boostMult * underdogMult * socialMult * 100
+          ) / 100;
 
         savedRunId = saveRun({
           date: new Date().toISOString(),
@@ -151,8 +191,16 @@ export default function Page() {
         if (activeFlashRun) setActiveFlashRun(null);
 
         setRunSnapshot({
-          ...snapshot, result, raceResult, savedRunId,
-          baseKAD, boostMultiplier: boostMult, boostName, underdogMultiplier: underdogMult, socialMultiplier: socialMult, finalKAD,
+          ...snapshot,
+          result,
+          raceResult,
+          savedRunId,
+          baseKAD,
+          boostMultiplier: boostMult,
+          boostName,
+          underdogMultiplier: underdogMult,
+          socialMultiplier: socialMult,
+          finalKAD,
           flashRunEvent: activeFlashRun ?? undefined,
         });
       } catch (err) {
@@ -160,15 +208,29 @@ export default function Page() {
         if (activeFlashRun) setActiveFlashRun(null);
         const distKm = snapshot.distanceMeters / 1000;
         setRunSnapshot({
-          ...snapshot, result, raceResult,
-          baseKAD: distKm, boostMultiplier: 1, boostName: null, underdogMultiplier: 1, socialMultiplier: 1, finalKAD: Math.round(distKm * multiplier * 100) / 100,
+          ...snapshot,
+          result,
+          raceResult,
+          baseKAD: distKm,
+          boostMultiplier: 1,
+          boostName: null,
+          underdogMultiplier: 1,
+          socialMultiplier: 1,
+          finalKAD: Math.round(distKm * multiplier * 100) / 100,
           flashRunEvent: activeFlashRun ?? undefined,
         });
       }
 
       setView("post-run");
     },
-    [activeFlashRun, submitResult, saveRun, multiplier, addRunContribution],
+    [
+      activeFlashRun,
+      submitResult,
+      saveRun,
+      multiplier,
+      addRunContribution,
+      socialMultiplier,
+    ]
   );
 
   const handleCancel = useCallback(() => {
@@ -209,12 +271,19 @@ export default function Page() {
         updateRunTx(runSnapshot.savedRunId, sig);
       }
       setClaimed(true);
-      if (runSnapshot.flashRunEvent?.type === "race" && runSnapshot.raceResult && !runSnapshot.raceResult.dnf) {
+      if (
+        runSnapshot.flashRunEvent?.type === "race" &&
+        runSnapshot.raceResult &&
+        !runSnapshot.raceResult.dnf
+      ) {
         const pool = runSnapshot.flashRunEvent.prizePoolKad;
         let kadWon = 0;
-        if (runSnapshot.raceResult.position === 1) kadWon = Math.round(pool * 0.5 * 100) / 100;
-        else if (runSnapshot.raceResult.position === 2) kadWon = Math.round(pool * 0.3 * 100) / 100;
-        else if (runSnapshot.raceResult.position === 3) kadWon = Math.round(pool * 0.2 * 100) / 100;
+        if (runSnapshot.raceResult.position === 1)
+          kadWon = Math.round(pool * 0.5 * 100) / 100;
+        else if (runSnapshot.raceResult.position === 2)
+          kadWon = Math.round(pool * 0.3 * 100) / 100;
+        else if (runSnapshot.raceResult.position === 3)
+          kadWon = Math.round(pool * 0.2 * 100) / 100;
         saveTrophy({
           id: String(Date.now()),
           eventName: runSnapshot.flashRunEvent.name,
@@ -257,7 +326,8 @@ export default function Page() {
 
   const handleShare = useCallback(() => {
     if (!runSnapshot || !joinedCommunity) return;
-    const profileName = localStorage.getItem("kadence_profile_name") || "Runner";
+    const profileName =
+      localStorage.getItem("kadence_profile_name") || "Runner";
     const walletAddr = signer?.address?.toString() || "";
     socialFeed.shareRun({
       runId: runSnapshot.savedRunId || `run-${Date.now()}`,
@@ -266,8 +336,10 @@ export default function Page() {
       walletAddress: walletAddr,
       distanceKm: runSnapshot.distanceMeters / 1000,
       durationSeconds: runSnapshot.durationSeconds,
-      paceSecPerKm: runSnapshot.distanceMeters > 0
-        ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000 : 0,
+      paceSecPerKm:
+        runSnapshot.distanceMeters > 0
+          ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000
+          : 0,
       kadEarned: runSnapshot.finalKAD,
       routeCoords: runSnapshot.routeCoords.filter((_, i) => i % 5 === 0),
       txSignature: null,
@@ -308,19 +380,37 @@ export default function Page() {
         }}
       >
         {view === "home" && (
-          <HomeScreen onStart={handleStart} onCommunity={handleCommunity} onFlashRuns={handleFlashRuns} onProfile={handleProfile} />
+          <HomeScreen
+            onStart={handleStart}
+            onCommunity={handleCommunity}
+            onFlashRuns={handleFlashRuns}
+            onProfile={handleProfile}
+          />
         )}
 
         {view === "history" && (
-          <ActivityScreen onBack={() => setView("home")} onStart={handleStart} syncing={chainSyncing} onSync={chainSyncNow} />
+          <ActivityScreen
+            onBack={() => setView("home")}
+            onStart={handleStart}
+            syncing={chainSyncing}
+            onSync={chainSyncNow}
+          />
         )}
 
         {view === "profile" && (
-          <ProfileScreen onBack={() => setView("home")} onHistory={handleHistory} />
+          <ProfileScreen
+            onBack={() => setView("home")}
+            onHistory={handleHistory}
+          />
         )}
 
         {view === "running" && (
-          <ActiveRunScreen onEnd={handleEnd} onCancel={handleCancel} flashRun={activeFlashRun ?? undefined} runGoal={runGoal ?? undefined} />
+          <ActiveRunScreen
+            onEnd={handleEnd}
+            onCancel={handleCancel}
+            flashRun={activeFlashRun ?? undefined}
+            runGoal={runGoal ?? undefined}
+          />
         )}
 
         {view === "community" && (
@@ -328,7 +418,10 @@ export default function Page() {
         )}
 
         {view === "flash-runs" && (
-          <FlashRunScreen onBack={() => setView("home")} onStartRace={handleStartRace} />
+          <FlashRunScreen
+            onBack={() => setView("home")}
+            onStartRace={handleStartRace}
+          />
         )}
 
         {view === "post-run" && runSnapshot && (
@@ -344,7 +437,11 @@ export default function Page() {
             isShared={isShared}
             communityName={joinedCommunity?.name}
             routeCoords={runSnapshot.routeCoords}
-            runnerName={typeof window !== "undefined" ? localStorage.getItem("kadence_profile_name") || "Runner" : "Runner"}
+            runnerName={
+              typeof window !== "undefined"
+                ? localStorage.getItem("kadence_profile_name") || "Runner"
+                : "Runner"
+            }
             profileSlug={(() => {
               if (typeof window === "undefined") return undefined;
               const name = localStorage.getItem("kadence_profile_name");

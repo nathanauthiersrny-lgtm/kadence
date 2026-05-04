@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { useWallet } from "../lib/wallet/context";
 import { useKadBalance } from "../lib/hooks/use-kad-balance";
@@ -108,25 +108,25 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
     tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
   };
 
-  const [profileName, setProfileName] = useState("");
+  const [profileName, setProfileName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("kadence_profile_name") || "";
+  });
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
-  const [unit, setUnit] = useState<"km" | "mi">("km");
-  const [trophies, setTrophies] = useState<Trophy[]>([]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("kadence_profile_name");
-    if (saved) setProfileName(saved);
-    const savedUnit = localStorage.getItem("kadence_unit");
-    if (savedUnit === "mi") setUnit("mi");
-
+  const [unit, setUnit] = useState<"km" | "mi">(() => {
+    if (typeof window === "undefined") return "km";
+    return localStorage.getItem("kadence_unit") === "mi" ? "mi" : "km";
+  });
+  const [trophies] = useState<Trophy[]>(() => {
+    if (typeof window === "undefined") return [];
     let loaded = loadTrophies();
     if (loaded.length === 0) {
       loaded = buildDemoTrophies();
       localStorage.setItem(TROPHIES_KEY, JSON.stringify(loaded));
     }
-    setTrophies(loaded);
-  }, []);
+    return loaded;
+  });
 
   const avatarLetter = profileName
     ? profileName[0].toUpperCase()

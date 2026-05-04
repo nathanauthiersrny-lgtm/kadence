@@ -49,7 +49,15 @@ export function WalletProvider({ children }: PropsWithChildren) {
   const { cluster } = useCluster();
   const chain = `solana:${cluster}`;
 
-  const [connectors, setConnectors] = useState<WalletConnector[]>([]);
+  const [connectors, setConnectors] = useState<WalletConnector[]>(() => {
+    if (typeof window === "undefined") return [];
+    const standard = discoverWallets();
+    let initial = standard;
+    if (shouldUseMobileConnector() && !standard.length) {
+      initial = [createPhantomMobileConnector(), ...standard];
+    }
+    return initial;
+  });
   const [session, setSession] = useState<WalletSession | undefined>();
   const [status, setStatus] = useState<WalletStatus>(
     WALLET_STATUS.DISCONNECTED
@@ -57,20 +65,9 @@ export function WalletProvider({ children }: PropsWithChildren) {
   const [error, setError] = useState<unknown>();
   const isReady = typeof window !== "undefined";
 
-  const connectorsRef = useRef<WalletConnector[]>([]);
+  const connectorsRef = useRef<WalletConnector[]>(connectors);
   const autoConnectAttempted = useRef(false);
   const phantomRedirectHandled = useRef(false);
-
-  // Discover wallets on mount (client-side only)
-  useEffect(() => {
-    const standard = discoverWallets();
-    let initial = standard;
-    if (shouldUseMobileConnector() && !standard.length) {
-      initial = [createPhantomMobileConnector(), ...standard];
-    }
-    connectorsRef.current = initial;
-    setConnectors(initial);
-  }, []);
 
   const handleWalletsChanged = useCallback((updated: WalletConnector[]) => {
     let merged = updated;
@@ -104,19 +101,29 @@ export function WalletProvider({ children }: PropsWithChildren) {
 
       if (result.action === "connect" && result.session) {
         const connector = createPhantomMobileConnector();
-        connector.connect({ silent: true }).then((s) => {
-          setSession(s);
-          setStatus(WALLET_STATUS.CONNECTED);
-          localStorage.setItem(STORAGE_KEY, "phantom-mobile");
-        });
+        connector
+          .connect({ silent: true })
+          .then((s) => {
+            setSession(s);
+            setStatus(WALLET_STATUS.CONNECTED);
+            localStorage.setItem(STORAGE_KEY, "phantom-mobile");
+          })
+          .catch(() => {
+            setStatus(WALLET_STATUS.DISCONNECTED);
+            localStorage.removeItem(STORAGE_KEY);
+          });
       } else if (result.action === "disconnect") {
-        setSession(undefined);
-        setStatus(WALLET_STATUS.DISCONNECTED);
-        localStorage.removeItem(STORAGE_KEY);
+        queueMicrotask(() => {
+          setSession(undefined);
+          setStatus(WALLET_STATUS.DISCONNECTED);
+          localStorage.removeItem(STORAGE_KEY);
+        });
       }
     } catch (err) {
-      setError(err);
-      setStatus(WALLET_STATUS.ERROR);
+      queueMicrotask(() => {
+        setError(err);
+        setStatus(WALLET_STATUS.ERROR);
+      });
     }
   }, []);
 
@@ -127,7 +134,11 @@ export function WalletProvider({ children }: PropsWithChildren) {
     if (lastId && !autoConnectAttempted.current) {
       autoConnectAttempted.current = true;
       let connector = connectorsRef.current.find((c) => c.id === lastId);
-      if (!connector && lastId === "phantom-mobile" && shouldUseMobileConnector()) {
+      if (
+        !connector &&
+        lastId === "phantom-mobile" &&
+        shouldUseMobileConnector()
+      ) {
         connector = createPhantomMobileConnector();
       }
       if (connector) {

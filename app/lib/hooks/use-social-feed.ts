@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { LatLon } from "./use-run-tracker";
 
 export type SharedRun = {
@@ -42,7 +42,16 @@ export type ShareRunParams = {
 const KEY_SHARED_RUNS = "kadence_shared_runs";
 const KEY_FIRES = "kadence_fires";
 
-const DEMO_NAMES = ["Alex", "Sam", "Jordan", "Miko", "River", "Casey", "Blake", "Quinn"];
+const DEMO_NAMES = [
+  "Alex",
+  "Sam",
+  "Jordan",
+  "Miko",
+  "River",
+  "Casey",
+  "Blake",
+  "Quinn",
+];
 
 function seededRandom(seed: number): number {
   const x = Math.sin(seed + 1) * 10_000;
@@ -86,7 +95,9 @@ function saveFires(fires: Record<string, boolean>) {
 function generateSimulatedRuns(communityId: string): SharedRun[] {
   const monday = getMondayOfWeek();
   const weekSeed = monday.getTime();
-  const commSeed = communityId.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const commSeed = communityId
+    .split("")
+    .reduce((a, c) => a + c.charCodeAt(0), 0);
   const baseSeed = commSeed + weekSeed;
 
   const count = 5 + Math.floor(seededRandom(baseSeed) * 4); // 5-8
@@ -98,15 +109,18 @@ function generateSimulatedRuns(communityId: string): SharedRun[] {
     const distKm = 1.5 + seededRandom(s + 1) * 9;
     const paceSecPerKm = 280 + seededRandom(s + 2) * 180;
     const duration = Math.round(distKm * paceSecPerKm);
-    const kad = Math.round(distKm * (1 + seededRandom(s + 3) * 0.5) * 100) / 100;
+    const kad =
+      Math.round(distKm * (1 + seededRandom(s + 3) * 0.5) * 100) / 100;
     const fireCount = 3 + Math.floor(seededRandom(s + 4) * 23);
     const hoursAgo = 1 + seededRandom(s + 5) * 120;
     const sharedAt = new Date(Date.now() - hoursAgo * 3_600_000).toISOString();
 
-    const walletChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789";
+    const walletChars =
+      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789";
     let fakeAddr = "";
     for (let j = 0; j < 8; j++) {
-      fakeAddr += walletChars[Math.floor(seededRandom(s + 10 + j) * walletChars.length)];
+      fakeAddr +=
+        walletChars[Math.floor(seededRandom(s + 10 + j) * walletChars.length)];
     }
 
     runs.push({
@@ -138,56 +152,45 @@ function getSocialMultiplier(weeklyFires: number): number {
 }
 
 export function useSocialFeed(communityId: string | null) {
-  const [sharedRuns, setSharedRuns] = useState<SharedRun[]>([]);
-  const [fires, setFires] = useState<Record<string, boolean>>({});
+  const [sharedRuns, setSharedRuns] = useState<SharedRun[]>(loadSharedRuns);
+  const [fires, setFires] = useState<Record<string, boolean>>(loadFires);
 
-  useEffect(() => {
-    setSharedRuns(loadSharedRuns());
-    setFires(loadFires());
+  const shareRun = useCallback((params: ShareRunParams): SharedRun => {
+    const run: SharedRun = {
+      id: `shared-${Date.now()}`,
+      ...params,
+      sharedAt: new Date().toISOString(),
+      fireCount: 0,
+      isSimulated: false,
+    };
+    const updated = [run, ...loadSharedRuns()];
+    saveSharedRuns(updated);
+    setSharedRuns(updated);
+    return run;
   }, []);
 
-  const shareRun = useCallback(
-    (params: ShareRunParams): SharedRun => {
-      const run: SharedRun = {
-        id: `shared-${Date.now()}`,
-        ...params,
-        sharedAt: new Date().toISOString(),
-        fireCount: 0,
-        isSimulated: false,
-      };
-      const updated = [run, ...loadSharedRuns()];
-      saveSharedRuns(updated);
-      setSharedRuns(updated);
-      return run;
-    },
-    [],
-  );
+  const fireRun = useCallback((sharedRunId: string) => {
+    const currentFires = loadFires();
+    if (currentFires[sharedRunId]) return;
 
-  const fireRun = useCallback(
-    (sharedRunId: string) => {
-      const currentFires = loadFires();
-      if (currentFires[sharedRunId]) return;
+    currentFires[sharedRunId] = true;
+    saveFires(currentFires);
+    setFires({ ...currentFires });
 
-      currentFires[sharedRunId] = true;
-      saveFires(currentFires);
-      setFires({ ...currentFires });
-
-      const runs = loadSharedRuns();
-      const idx = runs.findIndex((r) => r.id === sharedRunId);
-      if (idx >= 0) {
-        runs[idx] = { ...runs[idx], fireCount: runs[idx].fireCount + 1 };
-        saveSharedRuns(runs);
-        setSharedRuns(runs);
-      }
-    },
-    [],
-  );
+    const runs = loadSharedRuns();
+    const idx = runs.findIndex((r) => r.id === sharedRunId);
+    if (idx >= 0) {
+      runs[idx] = { ...runs[idx], fireCount: runs[idx].fireCount + 1 };
+      saveSharedRuns(runs);
+      setSharedRuns(runs);
+    }
+  }, []);
 
   const hasFired = useCallback(
     (sharedRunId: string): boolean => {
       return !!fires[sharedRunId];
     },
-    [fires],
+    [fires]
   );
 
   const monday = getMondayOfWeek();
@@ -203,7 +206,10 @@ export function useSocialFeed(communityId: string | null) {
           ...r,
           fireCount: r.fireCount + (fires[r.id] ? 1 : 0),
         })),
-      ].sort((a, b) => new Date(b.sharedAt).getTime() - new Date(a.sharedAt).getTime())
+      ].sort(
+        (a, b) =>
+          new Date(b.sharedAt).getTime() - new Date(a.sharedAt).getTime()
+      )
     : [];
 
   const weeklyFiresReceived = sharedRuns
@@ -211,7 +217,7 @@ export function useSocialFeed(communityId: string | null) {
       (r) =>
         !r.isSimulated &&
         r.runnerName === walletAddr &&
-        new Date(r.sharedAt) >= monday,
+        new Date(r.sharedAt) >= monday
     )
     .reduce((sum, r) => sum + r.fireCount, 0);
 

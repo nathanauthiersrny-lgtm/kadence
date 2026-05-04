@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const MULTIPLIERS: [number, number][] = [
-  [8,  2.0],
-  [4,  1.6],
-  [2,  1.4],
-  [1,  1.2],
-  [0,  1.0],
+  [8, 2.0],
+  [4, 1.6],
+  [2, 1.4],
+  [1, 1.2],
+  [0, 1.0],
 ];
 
 function multiplierForStreak(streak: number) {
@@ -38,7 +38,8 @@ type Stored = { streak: number; weekStart: string; runsThisWeek: number };
 function evaluateWeekTransition(stored: Stored, currentWeek: string): Stored {
   const prevWeek = getPreviousWeekStartStr();
   if (stored.weekStart === prevWeek) {
-    const newStreak = stored.runsThisWeek >= WEEKLY_GOAL ? stored.streak + 1 : 0;
+    const newStreak =
+      stored.runsThisWeek >= WEEKLY_GOAL ? stored.streak + 1 : 0;
     return { streak: newStreak, weekStart: currentWeek, runsThisWeek: 0 };
   }
   return { streak: 0, weekStart: currentWeek, runsThisWeek: 0 };
@@ -52,39 +53,48 @@ export type StreakState = {
   recordRun: () => void;
 };
 
-export function useStreak(): StreakState {
-  const [streak, setStreak] = useState(0);
-  const [runsThisWeek, setRunsThisWeek] = useState(0);
-
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if ("lastRunDate" in parsed && !("weekStart" in parsed)) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ streak: 0, weekStart: "", runsThisWeek: 0 }));
-        return;
-      }
-      const stored: Stored = parsed;
-      const currentWeek = getWeekStartStr();
-      if (stored.weekStart === currentWeek) {
-        setStreak(stored.streak);
-        setRunsThisWeek(stored.runsThisWeek);
-      } else if (stored.weekStart) {
-        const resolved = evaluateWeekTransition(stored, currentWeek);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(resolved));
-        setStreak(resolved.streak);
-        setRunsThisWeek(resolved.runsThisWeek);
-      }
-    } catch {
-      // ignore parse errors
+function loadStreakState(): { streak: number; runsThisWeek: number } {
+  if (typeof window === "undefined") return { streak: 0, runsThisWeek: 0 };
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return { streak: 0, runsThisWeek: 0 };
+  try {
+    const parsed = JSON.parse(raw);
+    if ("lastRunDate" in parsed && !("weekStart" in parsed)) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ streak: 0, weekStart: "", runsThisWeek: 0 })
+      );
+      return { streak: 0, runsThisWeek: 0 };
     }
-  }, []);
+    const stored: Stored = parsed;
+    const currentWeek = getWeekStartStr();
+    if (stored.weekStart === currentWeek) {
+      return { streak: stored.streak, runsThisWeek: stored.runsThisWeek };
+    } else if (stored.weekStart) {
+      const resolved = evaluateWeekTransition(stored, currentWeek);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(resolved));
+      return { streak: resolved.streak, runsThisWeek: resolved.runsThisWeek };
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return { streak: 0, runsThisWeek: 0 };
+}
+
+export function useStreak(): StreakState {
+  const [streak, setStreak] = useState(() => loadStreakState().streak);
+  const [runsThisWeek, setRunsThisWeek] = useState(
+    () => loadStreakState().runsThisWeek
+  );
 
   const recordRun = useCallback(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     const currentWeek = getWeekStartStr();
-    let current: Stored = { streak: 0, weekStart: currentWeek, runsThisWeek: 0 };
+    let current: Stored = {
+      streak: 0,
+      weekStart: currentWeek,
+      runsThisWeek: 0,
+    };
 
     if (raw) {
       try {
@@ -92,7 +102,9 @@ export function useStreak(): StreakState {
         if ("weekStart" in parsed) {
           current = parsed as Stored;
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     if (current.weekStart === currentWeek) {
@@ -107,5 +119,11 @@ export function useStreak(): StreakState {
     setRunsThisWeek(current.runsThisWeek);
   }, []);
 
-  return { streak, multiplier: multiplierForStreak(streak), runsThisWeek, weeklyGoal: WEEKLY_GOAL, recordRun };
+  return {
+    streak,
+    multiplier: multiplierForStreak(streak),
+    runsThisWeek,
+    weeklyGoal: WEEKLY_GOAL,
+    recordRun,
+  };
 }

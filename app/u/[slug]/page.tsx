@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useWallet } from "../../lib/wallet/context";
 import { useRunHistory } from "../../lib/hooks/use-run-history";
 import { useStreak } from "../../lib/hooks/use-streak";
@@ -40,7 +40,18 @@ type DemoProfile = {
   sharedRuns: SharedRun[];
 };
 
-const LEVEL_TITLES = ["Beginner", "Jogger", "Runner", "Pacer", "Sprinter", "Racer", "Finisher", "Elite", "Champion", "Legend"];
+const LEVEL_TITLES = [
+  "Beginner",
+  "Jogger",
+  "Runner",
+  "Pacer",
+  "Sprinter",
+  "Racer",
+  "Finisher",
+  "Elite",
+  "Champion",
+  "Legend",
+];
 
 function buildDemoProfile(slug: string): DemoProfile {
   const s = seedFromSlug(slug);
@@ -50,14 +61,32 @@ function buildDemoProfile(slug: string): DemoProfile {
   const totalDurationSec = Math.round(totalDistKm * avgPace);
   const kadBalance = Math.round(totalDistKm * 1.1 * 100) / 100;
   const streak = 2 + Math.floor(seededRandom(s + 3) * 7);
-  const multiplier = streak >= 8 ? 2.0 : streak >= 4 ? 1.6 : streak >= 2 ? 1.4 : streak >= 1 ? 1.2 : 1.0;
+  const multiplier =
+    streak >= 8
+      ? 2.0
+      : streak >= 4
+        ? 1.6
+        : streak >= 2
+          ? 1.4
+          : streak >= 1
+            ? 1.2
+            : 1.0;
   const runsThisWeek = 1 + Math.floor(seededRandom(s + 4) * 4);
   const totalXP = totalRuns * 25 + Math.floor(seededRandom(s + 5) * 200);
   const level = Math.max(1, Math.floor(totalXP / 100) + 1);
   const levelXP = totalXP % 100;
   const levelTitle = LEVEL_TITLES[Math.min(level, LEVEL_TITLES.length - 1)];
 
-  const allBadgeIds = ["first-run", "streak-3", "streak-7", "club-5k", "sub-30", "club-10k", "speed-demon", "half-marathon"];
+  const allBadgeIds = [
+    "first-run",
+    "streak-3",
+    "streak-7",
+    "club-5k",
+    "sub-30",
+    "club-10k",
+    "speed-demon",
+    "half-marathon",
+  ];
   const numEarned = 3 + Math.floor(seededRandom(s + 6) * 2);
   const earnedBadges = new Set(allBadgeIds.slice(0, numEarned));
 
@@ -130,49 +159,105 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
-const ALL_BADGES: { id: string; icon: string; label: string; desc: string }[] = [
-  { id: "first-run", icon: "play", label: "First Step", desc: "Complete your first run" },
-  { id: "streak-3", icon: "flame", label: "On Fire", desc: "3-week streak" },
-  { id: "streak-7", icon: "crown", label: "7-Week Streak", desc: "7-week streak" },
-  { id: "club-5k", icon: "route", label: "5K Club", desc: "Run 5 km in one session" },
-  { id: "sub-30", icon: "bolt", label: "Sub-30", desc: "5 km under 30 minutes" },
-  { id: "club-10k", icon: "medal", label: "10K Club", desc: "Run 10 km in one session" },
-  { id: "speed-demon", icon: "zap", label: "Speed Demon", desc: "Reach Sprint zone" },
-  { id: "half-marathon", icon: "trophy", label: "Half Marathon", desc: "Run 21 km in one session" },
-];
+const ALL_BADGES: { id: string; icon: string; label: string; desc: string }[] =
+  [
+    {
+      id: "first-run",
+      icon: "play",
+      label: "First Step",
+      desc: "Complete your first run",
+    },
+    { id: "streak-3", icon: "flame", label: "On Fire", desc: "3-week streak" },
+    {
+      id: "streak-7",
+      icon: "crown",
+      label: "7-Week Streak",
+      desc: "7-week streak",
+    },
+    {
+      id: "club-5k",
+      icon: "route",
+      label: "5K Club",
+      desc: "Run 5 km in one session",
+    },
+    {
+      id: "sub-30",
+      icon: "bolt",
+      label: "Sub-30",
+      desc: "5 km under 30 minutes",
+    },
+    {
+      id: "club-10k",
+      icon: "medal",
+      label: "10K Club",
+      desc: "Run 10 km in one session",
+    },
+    {
+      id: "speed-demon",
+      icon: "zap",
+      label: "Speed Demon",
+      desc: "Reach Sprint zone",
+    },
+    {
+      id: "half-marathon",
+      icon: "trophy",
+      label: "Half Marathon",
+      desc: "Run 21 km in one session",
+    },
+  ];
+
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export default function PublicProfilePage() {
   const { slug } = useParams<{ slug: string }>();
   const { wallet } = useWallet();
   const address = wallet?.account.address ?? "";
 
-  const [isOwn, setIsOwn] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribe,
+    getClientSnapshot,
+    getServerSnapshot
+  );
 
-  useEffect(() => {
-    setMounted(true);
+  const isOwn = useMemo(() => {
+    if (!mounted) return false;
     const profileName = localStorage.getItem("kadence_profile_name") || "";
     const slugFromName = profileName.toLowerCase().replace(/\s+/g, "-");
-    setIsOwn(slug === slugFromName || slug === address);
-  }, [slug, address]);
+    return slug === slugFromName || slug === address;
+  }, [mounted, slug, address]);
 
   if (!mounted) {
     return <div style={{ background: "#0D0D0D", minHeight: "100dvh" }} />;
   }
 
-  return isOwn ? <OwnProfile slug={slug} address={address} /> : <DemoProfile slug={slug} />;
+  return isOwn ? (
+    <OwnProfile slug={slug} address={address} />
+  ) : (
+    <DemoProfile slug={slug} />
+  );
 }
 
 function OwnProfile({ slug, address }: { slug: string; address: string }) {
-  const { data: kadBalance } = useKadBalance((address || undefined) as Address | undefined);
+  const { data: kadBalance } = useKadBalance(
+    (address || undefined) as Address | undefined
+  );
   const { level, levelXP, levelTitle } = useXP();
   const { streak, multiplier, runsThisWeek, weeklyGoal } = useStreak();
   const { badges } = useBadges();
   const { runs, totalDistKm, totalRuns } = useRunHistory();
-  const joinedCommunityId = typeof window !== "undefined" ? localStorage.getItem("kad_community_joined") : null;
-  const joinedCommunity = COMMUNITIES.find(c => c.id === joinedCommunityId) ?? null;
+  const joinedCommunityId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("kad_community_joined")
+      : null;
+  const joinedCommunity =
+    COMMUNITIES.find((c) => c.id === joinedCommunityId) ?? null;
   const { sharedRuns } = useSocialFeed(joinedCommunityId);
-  const profileName = typeof window !== "undefined" ? localStorage.getItem("kadence_profile_name") || slug : slug;
+  const profileName =
+    typeof window !== "undefined"
+      ? localStorage.getItem("kadence_profile_name") || slug
+      : slug;
   const totalDurationSec = runs.reduce((s, r) => s + r.duration, 0);
   const totalKad = kadBalance?.uiAmount ?? 0;
 
@@ -192,15 +277,24 @@ function OwnProfile({ slug, address }: { slug: string; address: string }) {
       runsThisWeek={runsThisWeek}
       weeklyGoal={weeklyGoal}
       communityName={joinedCommunity?.name ?? null}
-      badges={badges.map(b => ({ id: b.id, icon: b.icon, label: b.label, desc: b.desc, earned: b.earned }))}
-      recentRuns={sharedRuns.filter(r => !r.isSimulated).slice(0, 5)}
+      badges={badges.map((b) => ({
+        id: b.id,
+        icon: b.icon,
+        label: b.label,
+        desc: b.desc,
+        earned: b.earned,
+      }))}
+      recentRuns={sharedRuns.filter((r) => !r.isSimulated).slice(0, 5)}
     />
   );
 }
 
 function DemoProfile({ slug }: { slug: string }) {
   const demo = buildDemoProfile(slug);
-  const badges = ALL_BADGES.map(b => ({ ...b, earned: demo.earnedBadges.has(b.id) }));
+  const badges = ALL_BADGES.map((b) => ({
+    ...b,
+    earned: demo.earnedBadges.has(b.id),
+  }));
 
   return (
     <ProfileLayout
@@ -239,12 +333,21 @@ type ProfileLayoutProps = {
   runsThisWeek: number;
   weeklyGoal: number;
   communityName: string | null;
-  badges: { id: string; icon: string; label: string; desc: string; earned: boolean }[];
+  badges: {
+    id: string;
+    icon: string;
+    label: string;
+    desc: string;
+    earned: boolean;
+  }[];
   recentRuns: SharedRun[];
 };
 
 function avatarColor(str: string): string {
-  const hex = str.replace(/[^a-fA-F0-9]/g, "").slice(0, 6).padEnd(6, "0");
+  const hex = str
+    .replace(/[^a-fA-F0-9]/g, "")
+    .slice(0, 6)
+    .padEnd(6, "0");
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
@@ -252,56 +355,124 @@ function avatarColor(str: string): string {
 }
 
 function ProfileLayout({
-  name, walletAddr, kadBalance, level, levelXP, levelTitle,
-  totalRuns, totalDistKm, totalTimeSec,
-  streak, multiplier, runsThisWeek, weeklyGoal,
-  communityName, badges, recentRuns,
+  name,
+  walletAddr,
+  kadBalance,
+  level,
+  levelXP,
+  levelTitle,
+  totalRuns,
+  totalDistKm,
+  totalTimeSec,
+  streak,
+  multiplier,
+  runsThisWeek,
+  weeklyGoal,
+  communityName,
+  badges,
+  recentRuns,
 }: ProfileLayoutProps) {
   const avatarLetter = name ? name[0].toUpperCase() : "?";
   const avatarBg = walletAddr ? avatarColor(walletAddr) : avatarColor(name);
 
   return (
-    <div style={{
-      minHeight: "100dvh", background: "#0D0D0D", color: "#fff",
-      fontFamily: "var(--font-sans)", display: "flex", justifyContent: "center",
-    }}>
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "#0D0D0D",
+        color: "#fff",
+        fontFamily: "var(--font-sans)",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
       <div style={{ width: "100%", maxWidth: 430, padding: "0 0 60px" }}>
-
         {/* Header */}
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "20px 22px 0",
-        }}>
-          <span style={{
-            fontSize: 13, fontWeight: 700, letterSpacing: "0.22em",
-            textTransform: "uppercase", color: "rgba(255,255,255,0.6)",
-          }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "20px 22px 0",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
             Kadence
           </span>
-          <svg width="20" height="16" viewBox="0 0 508 396" fill="none" style={{ opacity: 0.4 }}>
-            <path d="M253.7 0L0.5 395.3h98l155.2-247.5L408.8 395.3h98L253.7 0z" fill="#fff" />
+          <svg
+            width="20"
+            height="16"
+            viewBox="0 0 508 396"
+            fill="none"
+            style={{ opacity: 0.4 }}
+          >
+            <path
+              d="M253.7 0L0.5 395.3h98l155.2-247.5L408.8 395.3h98L253.7 0z"
+              fill="#fff"
+            />
           </svg>
         </div>
 
         {/* Hero */}
-        <div style={{ position: "relative", overflow: "hidden", padding: "40px 22px 36px" }}>
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "radial-gradient(ellipse at 50% 40%, rgba(224,244,121,0.2) 0%, transparent 60%)",
-          }} />
-          <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: "50%", background: avatarBg,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 28, fontWeight: 700, color: "#FFFFFF",
-            }}>
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            padding: "40px 22px 36px",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(ellipse at 50% 40%, rgba(224,244,121,0.2) 0%, transparent 60%)",
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 14,
+            }}
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background: avatarBg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 28,
+                fontWeight: 700,
+                color: "#FFFFFF",
+              }}
+            >
               {avatarLetter}
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, textAlign: "center" }}>
               {name}
             </div>
             {walletAddr && (
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums" }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.4)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {ellipsify(walletAddr, 4)}
               </span>
             )}
@@ -310,39 +481,84 @@ function ProfileLayout({
 
         {/* KAD balance */}
         <div style={{ textAlign: "center", padding: "0 22px 28px" }}>
-          <div style={{
-            fontSize: 52, fontWeight: 700, color: "#E0F479",
-            letterSpacing: "-0.04em", lineHeight: 1, fontVariantNumeric: "tabular-nums",
-            textShadow: "0 0 28px rgba(224,244,121,0.3)",
-          }}>
+          <div
+            style={{
+              fontSize: 52,
+              fontWeight: 700,
+              color: "#E0F479",
+              letterSpacing: "-0.04em",
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+              textShadow: "0 0 28px rgba(224,244,121,0.3)",
+            }}
+          >
             {kadBalance.toFixed(2)}
           </div>
-          <div style={{ fontSize: 14, color: "#E0F479", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", marginTop: 6 }}>
+          <div
+            style={{
+              fontSize: 14,
+              color: "#E0F479",
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              marginTop: 6,
+            }}
+          >
             KAD
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 16 }}>
-
+        <div
+          style={{
+            padding: "0 18px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
           {/* Lifetime stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 10,
+            }}
+          >
             {[
               { label: "Total runs", value: String(totalRuns) },
               { label: "Total km", value: totalDistKm.toFixed(1) },
               { label: "Total time", value: fmtTotalTime(totalTimeSec) },
             ].map((s) => (
-              <div key={s.label} style={{
-                background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-                borderRadius: 16, padding: 14,
-              }}>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 8, lineHeight: 1.3 }}>
+              <div
+                key={s.label}
+                style={{
+                  background: "#1A1A1A",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  borderRadius: 16,
+                  padding: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.5)",
+                    marginBottom: 8,
+                    lineHeight: 1.3,
+                  }}
+                >
                   {s.label}
                 </div>
-                <div style={{
-                  fontSize: 26, fontWeight: 700, color: "#FFFFFF",
-                  letterSpacing: "-0.04em", lineHeight: 1, fontVariantNumeric: "tabular-nums",
-                }}>
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 700,
+                    color: "#FFFFFF",
+                    letterSpacing: "-0.04em",
+                    lineHeight: 1,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
                   {s.value}
                 </div>
               </div>
@@ -350,17 +566,39 @@ function ProfileLayout({
           </div>
 
           {/* Streak + Level row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+          >
             {/* Streak */}
-            <div style={{
-              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-              borderRadius: 16, padding: "14px 16px",
-            }}>
-              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 8 }}>
+            <div
+              style={{
+                background: "#1A1A1A",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 16,
+                padding: "14px 16px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.16em",
+                  color: "rgba(255,255,255,0.5)",
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
                 Streak
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    fontVariantNumeric: "tabular-nums",
+                    lineHeight: 1,
+                  }}
+                >
                   {streak}
                 </span>
                 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
@@ -368,43 +606,101 @@ function ProfileLayout({
                 </span>
               </div>
               {multiplier > 1 && (
-                <span style={{ fontSize: 10, color: "#E0F479", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 6, display: "inline-block" }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "#E0F479",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    marginTop: 6,
+                    display: "inline-block",
+                  }}
+                >
                   {multiplier}x boost
                 </span>
               )}
               <div style={{ display: "flex", gap: 3, marginTop: 10 }}>
                 {Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} style={{
-                    flex: 1, height: 4, borderRadius: 2,
-                    background: i < runsThisWeek ? "#E0F479" : i < weeklyGoal ? "rgba(224,244,121,0.3)" : "rgba(224,244,121,0.1)",
-                  }} />
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 4,
+                      borderRadius: 2,
+                      background:
+                        i < runsThisWeek
+                          ? "#E0F479"
+                          : i < weeklyGoal
+                            ? "rgba(224,244,121,0.3)"
+                            : "rgba(224,244,121,0.1)",
+                    }}
+                  />
                 ))}
               </div>
             </div>
 
             {/* Level */}
-            <div style={{
-              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-              borderRadius: 16, padding: "14px 16px",
-            }}>
-              <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 8 }}>
+            <div
+              style={{
+                background: "#1A1A1A",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 16,
+                padding: "14px 16px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.16em",
+                  color: "rgba(255,255,255,0.5)",
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
                 Level
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    fontVariantNumeric: "tabular-nums",
+                    lineHeight: 1,
+                  }}
+                >
                   {level}
                 </span>
                 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
                   {levelTitle}
                 </span>
               </div>
-              <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", marginTop: 10 }}>
-                <div style={{
-                  width: `${levelXP}%`, height: "100%",
-                  background: "#E0F479", borderRadius: 2,
-                }} />
+              <div
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  background: "rgba(255,255,255,0.1)",
+                  marginTop: 10,
+                }}
+              >
+                <div
+                  style={{
+                    width: `${levelXP}%`,
+                    height: "100%",
+                    background: "#E0F479",
+                    borderRadius: 2,
+                  }}
+                />
               </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "rgba(255,255,255,0.4)",
+                  marginTop: 6,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {levelXP} / 100 XP
               </div>
             </div>
@@ -412,38 +708,69 @@ function ProfileLayout({
 
           {/* Community badge */}
           {communityName && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 16px",
-              background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.16)",
-              borderRadius: 50,
-            }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 16px",
+                background: "#1A1A1A",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 50,
+              }}
+            >
               <KIcon name="users" size={16} color="rgba(255,255,255,0.5)" />
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{communityName}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>
+                {communityName}
+              </span>
             </div>
           )}
 
           {/* Badges */}
           <div>
-            <div style={{
-              fontSize: 18, fontWeight: 600, color: "#FFFFFF",
-              marginBottom: 12, letterSpacing: "-0.01em",
-            }}>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: "#FFFFFF",
+                marginBottom: 12,
+                letterSpacing: "-0.01em",
+              }}
+            >
               Badges
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400, marginLeft: 8 }}>
-                {badges.filter(b => b.earned).length} / {badges.length}
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.4)",
+                  fontWeight: 400,
+                  marginLeft: 8,
+                }}
+              >
+                {badges.filter((b) => b.earned).length} / {badges.length}
               </span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 8,
+              }}
+            >
               {badges.map((b) => (
                 <div
                   key={b.id}
                   title={b.desc}
                   style={{
-                    aspectRatio: "1", borderRadius: 14,
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center", gap: 6,
-                    background: b.earned ? "rgba(224,244,121,0.08)" : "transparent",
+                    aspectRatio: "1",
+                    borderRadius: 14,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    background: b.earned
+                      ? "rgba(224,244,121,0.08)"
+                      : "transparent",
                     border: `1px solid ${b.earned ? "#E0F479" : "rgba(255,255,255,0.2)"}`,
                     padding: "0 4px",
                   }}
@@ -453,11 +780,17 @@ function ProfileLayout({
                     size={22}
                     color={b.earned ? "#E0F479" : "rgba(255,255,255,0.25)"}
                   />
-                  <span style={{
-                    fontSize: 9, textAlign: "center",
-                    color: b.earned ? "rgba(224,244,121,0.9)" : "rgba(255,255,255,0.35)",
-                    letterSpacing: "0.04em", lineHeight: 1.15,
-                  }}>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      textAlign: "center",
+                      color: b.earned
+                        ? "rgba(224,244,121,0.9)"
+                        : "rgba(255,255,255,0.35)",
+                      letterSpacing: "0.04em",
+                      lineHeight: 1.15,
+                    }}
+                  >
                     {b.label}
                   </span>
                 </div>
@@ -468,34 +801,75 @@ function ProfileLayout({
           {/* Recent shared runs */}
           {recentRuns.length > 0 && (
             <div>
-              <div style={{
-                fontSize: 18, fontWeight: 600, color: "#FFFFFF",
-                marginBottom: 12, letterSpacing: "-0.01em",
-              }}>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#FFFFFF",
+                  marginBottom: 12,
+                  letterSpacing: "-0.01em",
+                }}
+              >
                 Recent runs
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {recentRuns.map((run) => (
-                  <div key={run.id} style={{
-                    background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: 16, padding: "14px 16px",
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                  }}>
+                  <div
+                    key={run.id}
+                    style={{
+                      background: "#1A1A1A",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 16,
+                      padding: "14px 16px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700 }}>
                         {run.distanceKm.toFixed(2)} km
                       </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "rgba(255,255,255,0.5)",
+                          marginTop: 3,
+                        }}
+                      >
                         {fmtPace(run.paceSecPerKm)}/km · {timeAgo(run.sharedAt)}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#E0F479" }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#E0F479",
+                        }}
+                      >
                         {run.kadEarned.toFixed(2)} KAD
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", marginTop: 3 }}>
-                        <KIcon name="flame" size={12} color="rgba(255,255,255,0.4)" />
-                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          justifyContent: "flex-end",
+                          marginTop: 3,
+                        }}
+                      >
+                        <KIcon
+                          name="flame"
+                          size={12}
+                          color="rgba(255,255,255,0.4)"
+                        />
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "rgba(255,255,255,0.4)",
+                          }}
+                        >
                           {run.fireCount}
                         </span>
                       </div>
@@ -507,14 +881,32 @@ function ProfileLayout({
           )}
 
           {/* Footer */}
-          <div style={{
-            textAlign: "center", paddingTop: 20, paddingBottom: 10,
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-          }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 600 }}>
+          <div
+            style={{
+              textAlign: "center",
+              paddingTop: 20,
+              paddingBottom: 10,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.3)",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+            >
               Built on Solana
             </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", marginTop: 6 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.2)",
+                marginTop: 6,
+              }}
+            >
               Kadence — Move to Earn
             </div>
           </div>

@@ -7,10 +7,10 @@ import type { ChainRun } from "./use-chain-sync";
 
 export type RunEntry = {
   id: string;
-  date: string;         // ISO string
-  distance: number;     // meters
-  duration: number;     // seconds
-  pace: number;         // seconds per km
+  date: string; // ISO string
+  distance: number; // meters
+  duration: number; // seconds
+  pace: number; // seconds per km
   kadEarned: number;
   routeCoords: LatLon[];
   txSignature: string | null;
@@ -123,7 +123,7 @@ function sevenDaysAgo(): Date {
 
 function mergeChainRuns(local: RunEntry[], chain: ChainRun[]): RunEntry[] {
   const knownSigs = new Set(
-    local.filter((r) => r.txSignature).map((r) => r.txSignature!),
+    local.filter((r) => r.txSignature).map((r) => r.txSignature!)
   );
 
   const newRuns: RunEntry[] = [];
@@ -149,19 +149,15 @@ function mergeChainRuns(local: RunEntry[], chain: ChainRun[]): RunEntry[] {
   if (newRuns.length === 0) return local;
 
   const merged = [...local, ...newRuns].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   localStorage.setItem(RUNS_KEY, JSON.stringify(merged));
   return merged;
 }
 
 export function useRunHistory(chainRuns?: ChainRun[]) {
-  const [runs, setRuns] = useState<RunEntry[]>([]);
+  const [runs, setRuns] = useState<RunEntry[]>(load);
   const mergedRef = useRef(false);
-
-  useEffect(() => {
-    setRuns(load());
-  }, []);
 
   useEffect(() => {
     if (!chainRuns || chainRuns.length === 0 || isDemoMode()) return;
@@ -186,7 +182,9 @@ export function useRunHistory(chainRuns?: ChainRun[]) {
 
   const updateRunTx = useCallback((runId: string, txSignature: string) => {
     setRuns((prev) => {
-      const next = prev.map((r) => r.id === runId ? { ...r, txSignature } : r);
+      const next = prev.map((r) =>
+        r.id === runId ? { ...r, txSignature } : r
+      );
       localStorage.setItem(RUNS_KEY, JSON.stringify(next));
       return next;
     });

@@ -54,8 +54,6 @@ export function RunMap({ route, className }: Props) {
       dotRef.current = null;
       startDotRef.current = null;
     };
-    // Run once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Redraw route whenever `route` changes.

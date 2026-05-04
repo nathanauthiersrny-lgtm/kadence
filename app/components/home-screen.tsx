@@ -20,7 +20,7 @@ export function HomeScreen({ onStart, onCommunity, onFlashRuns, onProfile }: Pro
   const address = wallet?.account.address;
   const { data: kadBalance } = useKadBalance(address);
   const { level, levelTitle } = useXP();
-  const { streak, multiplier, runsThisWeek, weeklyGoal } = useStreak();
+  const { streak, multiplier } = useStreak();
   const { quest, progressKm, completed, timeUntilReset } = useQuests();
   const { joinedCommunity, weekProgress, collectiveKm, challengeComplete } = useCommunity();
   const { demo, toggleDemo } = useDemoMode();

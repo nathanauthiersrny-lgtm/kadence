@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,10 +11,10 @@ export type FlashRun = {
   id: string;
   name: string;
   subtitle: string;
-  distanceM: number;       // race: race distance, boost: min distance (0 = any)
-  windowStart: number;     // ms timestamp
-  windowEnd: number;       // ms timestamp
-  prizePoolKad: number;    // 0 for boost events
+  distanceM: number; // race: race distance, boost: min distance (0 = any)
+  windowStart: number; // ms timestamp
+  windowEnd: number; // ms timestamp
+  prizePoolKad: number; // 0 for boost events
   participantCount: number; // 0 for boost events
   type: FlashRunType;
   boostMultiplier?: number; // only for boost events
@@ -52,23 +52,126 @@ type ScheduleEntry = {
 };
 
 const SCHEDULE: ScheduleEntry[] = [
-  { dayOfWeek: 1, id: "morning-kickstart", name: "Morning Kickstart", subtitle: "Early boost · Road",          type: "boost", startHour: 6,  endHour: 10, distanceM: 3_000,  prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 1.5 },
-  { dayOfWeek: 2, id: "tempo-tuesday",     name: "Tempo Tuesday",     subtitle: "Weekly race · 5K",            type: "race",  startHour: 0,  endHour: 24, distanceM: 5_000,  prizePoolKad: 25, participantCount: 89  },
-  { dayOfWeek: 3, id: "midweek-push",      name: "Midweek Push",      subtitle: "Afternoon boost · Any distance", type: "boost", startHour: 12, endHour: 20, distanceM: 0,      prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 1.3 },
-  { dayOfWeek: 4, id: "speed-session",     name: "Speed Session",     subtitle: "Evening boost · Road",        type: "boost", startHour: 17, endHour: 21, distanceM: 3_000,  prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 2.0 },
-  { dayOfWeek: 5, id: "friday-burn",       name: "Friday Burn",       subtitle: "All-day boost · Road",        type: "boost", startHour: 0,  endHour: 24, distanceM: 3_000,  prizePoolKad: 0,  participantCount: 0,   boostMultiplier: 1.5 },
-  { dayOfWeek: 6, id: "weekend-warrior",   name: "Weekend Warrior",   subtitle: "Weekend race · 10K",          type: "race",  startHour: 0,  endHour: 24, distanceM: 10_000, prizePoolKad: 50, participantCount: 134 },
+  {
+    dayOfWeek: 1,
+    id: "morning-kickstart",
+    name: "Morning Kickstart",
+    subtitle: "Early boost · Road",
+    type: "boost",
+    startHour: 6,
+    endHour: 10,
+    distanceM: 3_000,
+    prizePoolKad: 0,
+    participantCount: 0,
+    boostMultiplier: 1.5,
+  },
+  {
+    dayOfWeek: 2,
+    id: "tempo-tuesday",
+    name: "Tempo Tuesday",
+    subtitle: "Weekly race · 5K",
+    type: "race",
+    startHour: 0,
+    endHour: 24,
+    distanceM: 5_000,
+    prizePoolKad: 25,
+    participantCount: 89,
+  },
+  {
+    dayOfWeek: 3,
+    id: "midweek-push",
+    name: "Midweek Push",
+    subtitle: "Afternoon boost · Any distance",
+    type: "boost",
+    startHour: 12,
+    endHour: 20,
+    distanceM: 0,
+    prizePoolKad: 0,
+    participantCount: 0,
+    boostMultiplier: 1.3,
+  },
+  {
+    dayOfWeek: 4,
+    id: "speed-session",
+    name: "Speed Session",
+    subtitle: "Evening boost · Road",
+    type: "boost",
+    startHour: 17,
+    endHour: 21,
+    distanceM: 3_000,
+    prizePoolKad: 0,
+    participantCount: 0,
+    boostMultiplier: 2.0,
+  },
+  {
+    dayOfWeek: 5,
+    id: "friday-burn",
+    name: "Friday Burn",
+    subtitle: "All-day boost · Road",
+    type: "boost",
+    startHour: 0,
+    endHour: 24,
+    distanceM: 3_000,
+    prizePoolKad: 0,
+    participantCount: 0,
+    boostMultiplier: 1.5,
+  },
+  {
+    dayOfWeek: 6,
+    id: "weekend-warrior",
+    name: "Weekend Warrior",
+    subtitle: "Weekend race · 10K",
+    type: "race",
+    startHour: 0,
+    endHour: 24,
+    distanceM: 10_000,
+    prizePoolKad: 50,
+    participantCount: 134,
+  },
 ];
 
 function getSundayEntry(date: Date): ScheduleEntry {
   const weekOfMonth = Math.ceil(date.getDate() / 7);
   if (weekOfMonth === 2) {
-    return { dayOfWeek: 0, id: "sunday-10k",  name: "Sunday 10K",  subtitle: "Featured race · 10K",            type: "race", startHour: 0, endHour: 24, distanceM: 10_000, prizePoolKad: 75,  participantCount: 95 };
+    return {
+      dayOfWeek: 0,
+      id: "sunday-10k",
+      name: "Sunday 10K",
+      subtitle: "Featured race · 10K",
+      type: "race",
+      startHour: 0,
+      endHour: 24,
+      distanceM: 10_000,
+      prizePoolKad: 75,
+      participantCount: 95,
+    };
   }
   if (weekOfMonth === 3) {
-    return { dayOfWeek: 0, id: "sunday-half",  name: "Sunday Half",  subtitle: "Featured race · Half marathon", type: "race", startHour: 0, endHour: 24, distanceM: 21_097, prizePoolKad: 150, participantCount: 67 };
+    return {
+      dayOfWeek: 0,
+      id: "sunday-half",
+      name: "Sunday Half",
+      subtitle: "Featured race · Half marathon",
+      type: "race",
+      startHour: 0,
+      endHour: 24,
+      distanceM: 21_097,
+      prizePoolKad: 150,
+      participantCount: 67,
+    };
   }
-  return { dayOfWeek: 0, id: "sunday-5k", name: "Sunday 5K", subtitle: "Featured race · 5K", type: "race", startHour: 0, endHour: 24, distanceM: 5_000, prizePoolKad: 50, participantCount: 112 };
+  return {
+    dayOfWeek: 0,
+    id: "sunday-5k",
+    name: "Sunday 5K",
+    subtitle: "Featured race · 5K",
+    type: "race",
+    startHour: 0,
+    endHour: 24,
+    distanceM: 5_000,
+    prizePoolKad: 50,
+    participantCount: 112,
+  };
 }
 
 function getEntryForDay(date: Date): ScheduleEntry {
@@ -148,14 +251,26 @@ export function getFlashRunEvents(): FlashRun[] {
 
 // ─── Active boost ────────────────────────────────────────────────────────────
 
-export function getActiveBoost(): { multiplier: number; eventName: string; eventId: string } | null {
+export function getActiveBoost(): {
+  multiplier: number;
+  eventName: string;
+  eventId: string;
+} | null {
   const events = getFlashRunEvents();
   const now = Date.now();
   const active = events.find(
-    (e) => e.type === "boost" && e.boostMultiplier != null && now >= e.windowStart && now < e.windowEnd,
+    (e) =>
+      e.type === "boost" &&
+      e.boostMultiplier != null &&
+      now >= e.windowStart &&
+      now < e.windowEnd
   );
   if (!active) return null;
-  return { multiplier: active.boostMultiplier!, eventName: active.name, eventId: active.id };
+  return {
+    multiplier: active.boostMultiplier!,
+    eventName: active.name,
+    eventId: active.id,
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -166,9 +281,18 @@ function seededRandom(seed: number): number {
 }
 
 const COMPETITOR_NAMES = [
-  "Alex", "Sam", "Jordan", "Miko", "River",
-  "Ash", "Quinn", "Casey", "Blake", "Taylor",
-  "Sage", "Drew",
+  "Alex",
+  "Sam",
+  "Jordan",
+  "Miko",
+  "River",
+  "Ash",
+  "Quinn",
+  "Casey",
+  "Blake",
+  "Taylor",
+  "Sage",
+  "Drew",
 ];
 
 export function generateCompetitors(event: FlashRun): Competitor[] {
@@ -205,7 +329,10 @@ export function isDistanceValid(event: FlashRun, distanceM: number): boolean {
   return distanceM >= event.distanceM * 0.9;
 }
 
-export function getPlayerPosition(event: FlashRun, durationSec: number): number {
+export function getPlayerPosition(
+  event: FlashRun,
+  durationSec: number
+): number {
   const comps = generateCompetitors(event);
   if (comps.length === 0) return 1;
   return comps.filter((c) => c.finishTimeSec < durationSec).length + 1;
@@ -225,7 +352,9 @@ export function formatCountdown(ms: number): string {
 
 export function formatFinishTime(sec: number): string {
   const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60).toString().padStart(2, "0");
+  const m = Math.floor((sec % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
   const s = (sec % 60).toString().padStart(2, "0");
   return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
 }
@@ -244,13 +373,19 @@ const KEY_RESULTS = "kad_flash_results";
 const KEY_CUSTOM = "kad_flash_custom";
 
 function loadJoined(): string[] {
-  try { return JSON.parse(localStorage.getItem(KEY_JOINED) ?? "[]"); }
-  catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY_JOINED) ?? "[]");
+  } catch {
+    return [];
+  }
 }
 
 function loadResults(): Record<string, RaceResult> {
-  try { return JSON.parse(localStorage.getItem(KEY_RESULTS) ?? "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY_RESULTS) ?? "{}");
+  } catch {
+    return {};
+  }
 }
 
 function persistJoined(ids: string[]) {
@@ -258,8 +393,11 @@ function persistJoined(ids: string[]) {
 }
 
 function loadCustomEvents(): FlashRun[] {
-  try { return JSON.parse(localStorage.getItem(KEY_CUSTOM) ?? "[]"); }
-  catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY_CUSTOM) ?? "[]");
+  } catch {
+    return [];
+  }
 }
 
 function persistCustomEvents(events: FlashRun[]) {
@@ -286,7 +424,11 @@ export type FlashRunHookState = {
   joinedIds: string[];
   results: Record<string, RaceResult>;
   joinEvent: (id: string) => void;
-  submitResult: (eventId: string, distanceM: number, durationSec: number) => RaceResult;
+  submitResult: (
+    eventId: string,
+    distanceM: number,
+    durationSec: number
+  ) => RaceResult;
   resetResult: (eventId: string) => void;
   createEvent: (input: CreateEventInput) => FlashRun;
   deleteEvent: (eventId: string) => void;
@@ -294,17 +436,16 @@ export type FlashRunHookState = {
 
 export function useFlashRun(): FlashRunHookState {
   const seededEvents = getFlashRunEvents();
-  const [customEvents, setCustomEvents] = useState<FlashRun[]>([]);
-  const [joinedIds, setJoinedIds] = useState<string[]>([]);
-  const [results, setResults] = useState<Record<string, RaceResult>>({});
+  const [customEvents, setCustomEvents] =
+    useState<FlashRun[]>(loadCustomEvents);
+  const [joinedIds, setJoinedIds] = useState<string[]>(loadJoined);
+  const [results, setResults] =
+    useState<Record<string, RaceResult>>(loadResults);
 
-  useEffect(() => {
-    setJoinedIds(loadJoined());
-    setResults(loadResults());
-    setCustomEvents(loadCustomEvents());
-  }, []);
-
-  const events = useMemo(() => [...customEvents, ...seededEvents], [customEvents, seededEvents]);
+  const events = useMemo(
+    () => [...customEvents, ...seededEvents],
+    [customEvents, seededEvents]
+  );
 
   const joinEvent = useCallback((id: string) => {
     setJoinedIds((prev) => {
@@ -320,16 +461,29 @@ export function useFlashRun(): FlashRunHookState {
       const event = events.find((e) => e.id === eventId)!;
 
       if (!isDistanceValid(event, distanceM)) {
-        return { eventId, distanceM, durationSec, position: 0, totalParticipants: event.participantCount + 1, dnf: true };
+        return {
+          eventId,
+          distanceM,
+          durationSec,
+          position: 0,
+          totalParticipants: event.participantCount + 1,
+          dnf: true,
+        };
       }
 
       const position = getPlayerPosition(event, durationSec);
-      const r: RaceResult = { eventId, distanceM, durationSec, position, totalParticipants: event.participantCount + 1 };
+      const r: RaceResult = {
+        eventId,
+        distanceM,
+        durationSec,
+        position,
+        totalParticipants: event.participantCount + 1,
+      };
       persistResult(r);
       setResults((prev) => ({ ...prev, [eventId]: r }));
       return r;
     },
-    [events],
+    [events]
   );
 
   const createEvent = useCallback((input: CreateEventInput): FlashRun => {
@@ -372,5 +526,14 @@ export function useFlashRun(): FlashRunHookState {
     });
   }, []);
 
-  return { events, joinedIds, results, joinEvent, submitResult, resetResult, createEvent, deleteEvent };
+  return {
+    events,
+    joinedIds,
+    results,
+    joinEvent,
+    submitResult,
+    resetResult,
+    createEvent,
+    deleteEvent,
+  };
 }

@@ -35,11 +35,15 @@ export function shouldUseMobileConnector(): boolean {
 function getDappKeypair(): nacl.BoxKeyPair {
   const stored = localStorage.getItem(STORAGE_KEYS.KEYPAIR);
   if (stored) {
-    const parsed = JSON.parse(stored);
-    return {
-      publicKey: bs58.decode(parsed.publicKey),
-      secretKey: bs58.decode(parsed.secretKey),
-    };
+    try {
+      const parsed = JSON.parse(stored);
+      return {
+        publicKey: bs58.decode(parsed.publicKey),
+        secretKey: bs58.decode(parsed.secretKey),
+      };
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.KEYPAIR);
+    }
   }
   const kp = nacl.box.keyPair();
   localStorage.setItem(

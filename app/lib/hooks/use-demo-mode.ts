@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "kadence_demo_mode";
 
@@ -10,11 +10,7 @@ function isDemoActive(): boolean {
 }
 
 export function useDemoMode() {
-  const [demo, setDemo] = useState(false);
-
-  useEffect(() => {
-    setDemo(isDemoActive());
-  }, []);
+  const [demo] = useState(isDemoActive);
 
   const toggleDemo = useCallback(() => {
     const isCurrentlyOn = localStorage.getItem(STORAGE_KEY) === "true";

@@ -90,7 +90,7 @@ export function PostRunScreen({ snapshot, multiplier, onClaim, onBack, isClaimin
   const socialContrib = afterUnderdog * socialMult - afterUnderdog;
 
   const { level: levelBefore, levelXP: xpBefore, levelTitle, nextTitle, addXP } = useXP();
-  const { streak, recordRun } = useStreak();
+  const { recordRun } = useStreak();
   const { completeQuest } = useQuests();
   const { checkAndUnlock } = useBadges();
 

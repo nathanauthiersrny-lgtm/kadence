@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { useCommunity, COMMUNITIES, type Community } from "../lib/hooks/use-community";
+import { useCommunity, type Community } from "../lib/hooks/use-community";
 import { useSocialFeed } from "../lib/hooks/use-social-feed";
 import { useWallet } from "../lib/wallet/context";
 import { useSendTransaction } from "../lib/hooks/use-send-transaction";
@@ -187,7 +187,7 @@ function formatPaceCompact(secPerKm: number): string {
 }
 
 function DetailView({ onBack, onLeave }: { onBack: () => void; onLeave: () => void }) {
-  const { joinedCommunity, weekProgress, feed, collectiveKm, challengeComplete, leaveCommunity, markClaimed } = useCommunity();
+  const { joinedCommunity, weekProgress, collectiveKm, challengeComplete, leaveCommunity, markClaimed } = useCommunity();
   const { wallet, signer } = useWallet();
   const { send } = useSendTransaction();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);

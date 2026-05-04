@@ -27,11 +27,14 @@ function drawRoute(
   x: number,
   y: number,
   w: number,
-  h: number,
+  h: number
 ) {
   if (coords.length < 2) return;
 
-  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  let minLat = Infinity,
+    maxLat = -Infinity,
+    minLon = Infinity,
+    maxLon = -Infinity;
   for (const c of coords) {
     if (c.lat < minLat) minLat = c.lat;
     if (c.lat > maxLat) maxLat = c.lat;
@@ -50,9 +53,6 @@ function drawRoute(
   const offsetY = y + pad + (drawH - latRange * scale) / 2;
 
   const toX = (lon: number) => offsetX + (lon - minLon) * scale;
-  const toY = (lat: number) => offsetY + drawH - (lat - minLat) * scale + pad * 2 - (drawH - latRange * scale) / 2 - pad;
-
-  // Recalculate Y properly
   const toYFixed = (lat: number) => offsetY + (maxLat - lat) * scale;
 
   // Glow pass
@@ -99,7 +99,13 @@ function drawRoute(
   ctx.fill();
 }
 
-function drawStars(ctx: CanvasRenderingContext2D, x: number, y: number, count: number, total: number) {
+function drawStars(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  count: number,
+  total: number
+) {
   const size = 20;
   const gap = 6;
   const totalWidth = total * size + (total - 1) * gap;
@@ -133,7 +139,11 @@ function drawStars(ctx: CanvasRenderingContext2D, x: number, y: number, count: n
   }
 }
 
-const MEDAL_COLORS: Record<number, string> = { 1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32" };
+const MEDAL_COLORS: Record<number, string> = {
+  1: "#FFD700",
+  2: "#C0C0C0",
+  3: "#CD7F32",
+};
 
 export async function generateRunCardPNG(params: RunCardParams): Promise<Blob> {
   await document.fonts.ready;
@@ -188,7 +198,11 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob> {
 
   // ── Flash run position badge ──
   let statsTop = 680;
-  if (isFlash && params.flashRunPosition != null && params.flashRunTotalRunners != null) {
+  if (
+    isFlash &&
+    params.flashRunPosition != null &&
+    params.flashRunTotalRunners != null
+  ) {
     const pos = params.flashRunPosition;
     const medalColor = MEDAL_COLORS[pos] || "rgba(255,255,255,0.5)";
 
@@ -277,12 +291,9 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob> {
   ctx.textAlign = "left";
 
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Failed to generate PNG"));
-      },
-      "image/png",
-    );
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to generate PNG"));
+    }, "image/png");
   });
 }
