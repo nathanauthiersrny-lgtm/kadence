@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useWallet } from "../lib/wallet/context";
 import { useKadBalance } from "../lib/hooks/use-kad-balance";
@@ -10,6 +10,7 @@ import { useBadges } from "../lib/hooks/use-badges";
 import { useRunHistory } from "../lib/hooks/use-run-history";
 import { ellipsify } from "../lib/explorer";
 import { useSocialFeed } from "../lib/hooks/use-social-feed";
+import { useDemoMode } from "../lib/hooks/use-demo-mode";
 import { KIcon } from "./ui/primitives";
 
 type Trophy = {
@@ -92,6 +93,20 @@ type Props = {
 export function ProfileScreen({ onBack, onHistory }: Props) {
   const { wallet, disconnect } = useWallet();
   const address = wallet?.account.address ?? "";
+  const { demo, toggleDemo } = useDemoMode();
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleAvatarTap = () => {
+    tapCountRef.current += 1;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      toggleDemo();
+      return;
+    }
+    tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
+  };
 
   const [profileName, setProfileName] = useState("");
   const [editingName, setEditingName] = useState(false);
@@ -183,8 +198,19 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
         >
           <KIcon name="chevron" size={18} color="rgba(255,255,255,0.6)" style={{ transform: "rotate(180deg)" }} />
         </button>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
-          Profile
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+            Profile
+          </span>
+          {demo && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: "0.14em",
+              color: "#0D0D0D", background: "#E0F479",
+              padding: "2px 6px", borderRadius: 4, textTransform: "uppercase",
+            }}>
+              Demo
+            </span>
+          )}
         </span>
         <span style={{ width: 26 }} />
       </div>
@@ -194,14 +220,18 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
 
         {/* Avatar + identity */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 8 }}>
-          <div style={{
-            width: 80, height: 80, borderRadius: "50%",
-            background: avatarBg,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 32, fontWeight: 700, color: "#FFFFFF",
-            letterSpacing: "-0.02em",
-            userSelect: "none",
-          }}>
+          <div
+            onClick={handleAvatarTap}
+            style={{
+              width: 80, height: 80, borderRadius: "50%",
+              background: avatarBg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32, fontWeight: 700, color: "#FFFFFF",
+              letterSpacing: "-0.02em",
+              userSelect: "none",
+              cursor: "pointer",
+            }}
+          >
             {avatarLetter}
           </div>
 

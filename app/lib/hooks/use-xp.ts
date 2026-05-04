@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export const LEVEL_TITLES = [
   "Beginner",   // 0 – shouldn't appear
@@ -40,12 +40,11 @@ export type XPState = {
 };
 
 export function useXP(): XPState {
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => {
+  const [total, setTotal] = useState(() => {
+    if (typeof window === "undefined") return 0;
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) setTotal(parseInt(stored, 10) || 0);
-  }, []);
+    return stored ? parseInt(stored, 10) || 0 : 0;
+  });
 
   const addXP = useCallback((n: number) => {
     setTotal((prev) => {

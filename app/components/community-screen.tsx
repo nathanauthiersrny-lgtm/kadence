@@ -196,7 +196,11 @@ function DetailView({ onBack, onLeave }: { onBack: () => void; onLeave: () => vo
   const [isClaiming, setIsClaiming] = useState(false);
 
   const handleClaim = useCallback(async () => {
-    if (!signer || !joinedCommunity) return;
+    if (!signer) {
+      toast.error("Connect your wallet to claim the bonus.");
+      return;
+    }
+    if (!joinedCommunity) return;
     setIsClaiming(true);
     try {
       const ix = await getClaimChallengeBonusInstructionAsync({

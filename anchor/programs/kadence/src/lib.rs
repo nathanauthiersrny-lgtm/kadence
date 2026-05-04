@@ -1,7 +1,15 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::program::invoke_signed;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{mint_to, Mint, MintTo, Token, TokenAccount},
+};
+use mpl_token_metadata::{
+    instructions::{
+        CreateMetadataAccountV3, CreateMetadataAccountV3InstructionArgs,
+    },
+    types::DataV2,
+    ID as TOKEN_METADATA_PROGRAM_ID,
 };
 
 #[cfg(test)]
@@ -125,6 +133,56 @@ pub mod kadence {
 
         Ok(())
     }
+
+    /// One-time: attach Metaplex token metadata (name, symbol, logo) to the KAD mint.
+    pub fn create_token_metadata(
+        ctx: Context<CreateTokenMetadata>,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        let authority_bump = ctx.bumps.mint_authority;
+        let signer_seeds: &[&[&[u8]]] = &[&[b"mint-authority", &[authority_bump]]];
+
+        let ix = CreateMetadataAccountV3 {
+            metadata: ctx.accounts.metadata.key(),
+            mint: ctx.accounts.mint.key(),
+            mint_authority: ctx.accounts.mint_authority.key(),
+            payer: ctx.accounts.payer.key(),
+            update_authority: (ctx.accounts.mint_authority.key(), true),
+            system_program: ctx.accounts.system_program.key(),
+            rent: None,
+        }
+        .instruction(CreateMetadataAccountV3InstructionArgs {
+            data: DataV2 {
+                name,
+                symbol,
+                uri,
+                seller_fee_basis_points: 0,
+                creators: None,
+                collection: None,
+                uses: None,
+            },
+            is_mutable: true,
+            collection_details: None,
+        });
+
+        invoke_signed(
+            &ix,
+            &[
+                ctx.accounts.metadata.to_account_info(),
+                ctx.accounts.mint.to_account_info(),
+                ctx.accounts.mint_authority.to_account_info(),
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.mint_authority.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            signer_seeds,
+        )?;
+
+        msg!("Token metadata created for KAD mint");
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +284,44 @@ pub struct ClaimChallengeBonus<'info> {
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CreateTokenMetadata<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        seeds = [b"kad-mint"],
+        bump,
+    )]
+    pub mint: Account<'info, Mint>,
+
+    /// CHECK: PDA used only as a mint authority signer — no data stored.
+    #[account(
+        seeds = [b"mint-authority"],
+        bump,
+    )]
+    pub mint_authority: UncheckedAccount<'info>,
+
+    /// CHECK: Metaplex metadata PDA — validated by the token metadata program CPI.
+    #[account(
+        mut,
+        seeds = [
+            b"metadata",
+            TOKEN_METADATA_PROGRAM_ID.as_ref(),
+            mint.key().as_ref(),
+        ],
+        seeds::program = TOKEN_METADATA_PROGRAM_ID,
+        bump,
+    )]
+    pub metadata: UncheckedAccount<'info>,
+
+    /// CHECK: Verified by address constraint.
+    #[account(address = TOKEN_METADATA_PROGRAM_ID)]
+    pub token_metadata_program: UncheckedAccount<'info>,
+
     pub system_program: Program<'info, System>,
 }
 
