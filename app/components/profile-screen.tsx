@@ -121,9 +121,12 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const [trophies] = useState<Trophy[]>(() => {
     if (typeof window === "undefined") return [];
     let loaded = loadTrophies();
-    if (loaded.length === 0) {
+    if (loaded.length === 0 && demo) {
       loaded = buildDemoTrophies();
       localStorage.setItem(TROPHIES_KEY, JSON.stringify(loaded));
+    }
+    if (!demo) {
+      loaded = loaded.filter((t) => !t.id.startsWith("trophy-"));
     }
     return loaded;
   });
