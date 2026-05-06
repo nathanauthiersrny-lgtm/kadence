@@ -601,7 +601,7 @@ function BrowseView({
   onBack: () => void;
   onSelect: (event: FlashRun) => void;
 }) {
-  const [filter, setFilter] = useState<FilterTab>("all");
+  const [filter, setFilter] = useState<FilterTab>("live");
   const [showCreate, setShowCreate] = useState(false);
   const { events, results } = useFlashRun();
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
