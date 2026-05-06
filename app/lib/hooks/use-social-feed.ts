@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { LatLon } from "./use-run-tracker";
+import { modeKey } from "../storage";
 
 export type SharedRun = {
   id: string;
@@ -68,7 +69,7 @@ function getMondayOfWeek(): Date {
 
 function loadSharedRuns(): SharedRun[] {
   try {
-    const raw = localStorage.getItem(KEY_SHARED_RUNS);
+    const raw = localStorage.getItem(modeKey(KEY_SHARED_RUNS));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -76,12 +77,12 @@ function loadSharedRuns(): SharedRun[] {
 }
 
 function saveSharedRuns(runs: SharedRun[]) {
-  localStorage.setItem(KEY_SHARED_RUNS, JSON.stringify(runs));
+  localStorage.setItem(modeKey(KEY_SHARED_RUNS), JSON.stringify(runs));
 }
 
 function loadFires(): Record<string, boolean> {
   try {
-    const raw = localStorage.getItem(KEY_FIRES);
+    const raw = localStorage.getItem(modeKey(KEY_FIRES));
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -89,7 +90,7 @@ function loadFires(): Record<string, boolean> {
 }
 
 function saveFires(fires: Record<string, boolean>) {
-  localStorage.setItem(KEY_FIRES, JSON.stringify(fires));
+  localStorage.setItem(modeKey(KEY_FIRES), JSON.stringify(fires));
 }
 
 function generateSimulatedRuns(communityId: string): SharedRun[] {

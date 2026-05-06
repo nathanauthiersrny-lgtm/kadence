@@ -11,6 +11,7 @@ import { useKadBalance } from "../../lib/hooks/use-kad-balance";
 import { useSocialFeed, type SharedRun } from "../../lib/hooks/use-social-feed";
 import { COMMUNITIES } from "../../lib/hooks/use-community";
 import { ellipsify } from "../../lib/explorer";
+import { modeKey } from "../../lib/storage";
 import { KIcon } from "../../components/ui/primitives";
 import type { Address } from "@solana/kit";
 
@@ -249,7 +250,7 @@ function OwnProfile({ slug, address }: { slug: string; address: string }) {
   const { runs, totalDistKm, totalRuns } = useRunHistory();
   const joinedCommunityId =
     typeof window !== "undefined"
-      ? localStorage.getItem("kad_community_joined")
+      ? localStorage.getItem(modeKey("kad_community_joined"))
       : null;
   const joinedCommunity =
     COMMUNITIES.find((c) => c.id === joinedCommunityId) ?? null;

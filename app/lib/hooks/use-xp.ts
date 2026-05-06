@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { isDemoMode } from "./use-demo-mode";
+import { modeKey } from "../storage";
 
 export const LEVEL_TITLES = [
   "Beginner", // 0 – shouldn't appear
@@ -42,14 +44,20 @@ export type XPState = {
 export function useXP(): XPState {
   const [total, setTotal] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? parseInt(stored, 10) || 0 : 0;
+    const stored = localStorage.getItem(modeKey(STORAGE_KEY));
+    if (stored) return parseInt(stored, 10) || 0;
+    if (isDemoMode()) {
+      const seed = 267;
+      localStorage.setItem(modeKey(STORAGE_KEY), String(seed));
+      return seed;
+    }
+    return 0;
   });
 
   const addXP = useCallback((n: number) => {
     setTotal((prev) => {
       const next = prev + n;
-      localStorage.setItem(STORAGE_KEY, String(next));
+      localStorage.setItem(modeKey(STORAGE_KEY), String(next));
       return next;
     });
   }, []);

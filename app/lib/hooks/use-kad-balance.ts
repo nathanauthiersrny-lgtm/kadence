@@ -10,6 +10,7 @@ import {
 import { useCluster } from "../../components/cluster-context";
 import { useSolanaClient } from "../solana-client-context";
 import { findMintPda } from "../../generated/kadence";
+import { isDemoMode } from "./use-demo-mode";
 
 // Bytes of the SPL Token program address (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)
 // Used as a seed in the ATA PDA derivation.
@@ -42,14 +43,27 @@ export type KadBalanceResult = {
   uiAmount: number;
 };
 
+const DEMO_BALANCE: KadBalanceResult = {
+  ata: "11111111111111111111111111111111" as Address,
+  amount: "142500000",
+  uiAmount: 142.5,
+};
+
 export function useKadBalance(runnerAddress?: Address) {
   const { cluster } = useCluster();
   const client = useSolanaClient();
+  const demo = isDemoMode();
 
   return useSWR<KadBalanceResult>(
-    runnerAddress ? (["kad-balance", cluster, runnerAddress] as const) : null,
-    async ([, , runner]) => {
-      const ata = await findKadAtaAddress(runner as Address);
+    demo
+      ? (["kad-balance-demo"] as const)
+      : runnerAddress
+        ? (["kad-balance", cluster, runnerAddress] as const)
+        : null,
+    async () => {
+      if (isDemoMode()) return DEMO_BALANCE;
+      if (!runnerAddress) throw new Error("missing runner address");
+      const ata = await findKadAtaAddress(runnerAddress);
       try {
         const { value } = await client.rpc.getTokenAccountBalance(ata).send();
         return {

@@ -10,6 +10,7 @@ import { useKadBalance } from "../lib/hooks/use-kad-balance";
 import { useCluster } from "./cluster-context";
 import { getClaimChallengeBonusInstructionAsync } from "../generated/kadence";
 import { parseTransactionError } from "../lib/errors";
+import { modeKey } from "../lib/storage";
 import { KCard, KButton, KIcon } from "./ui/primitives";
 import { MiniRunMap } from "./mini-run-map";
 
@@ -1090,7 +1091,7 @@ export function CommunityScreen({ onBack }: Props) {
   const { joinedCommunity } = useCommunity();
   const [subView, setSubView] = useState<SubView>(() => {
     if (typeof window === "undefined") return "browse";
-    return localStorage.getItem("kad_community_joined") ? "detail" : "browse";
+    return localStorage.getItem(modeKey("kad_community_joined")) ? "detail" : "browse";
   });
   // True only when the user joined during this session (came from browse → detail).
   // If they arrived already joined, back from detail goes to home, not browse.

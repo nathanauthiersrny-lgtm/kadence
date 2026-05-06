@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useWallet } from "./lib/wallet/context";
 import { useSendTransaction } from "./lib/hooks/use-send-transaction";
@@ -28,6 +28,7 @@ import { useRunHistory } from "./lib/hooks/use-run-history";
 import { useChainSync } from "./lib/hooks/use-chain-sync";
 import { useSocialFeed } from "./lib/hooks/use-social-feed";
 import type { RunResult, LatLon } from "./lib/hooks/use-run-tracker";
+import { modeKey, migrateLegacyStorage } from "./lib/storage";
 
 type Trophy = {
   id: string;
@@ -45,10 +46,10 @@ const TROPHIES_KEY = "kadence_trophies";
 
 function saveTrophy(trophy: Trophy) {
   try {
-    const raw = localStorage.getItem(TROPHIES_KEY);
+    const raw = localStorage.getItem(modeKey(TROPHIES_KEY));
     const trophies: Trophy[] = raw ? JSON.parse(raw) : [];
     trophies.unshift(trophy);
-    localStorage.setItem(TROPHIES_KEY, JSON.stringify(trophies));
+    localStorage.setItem(modeKey(TROPHIES_KEY), JSON.stringify(trophies));
   } catch {
     /* ignore */
   }
@@ -97,9 +98,13 @@ export default function Page() {
   const { multiplier } = useStreak();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { addRunContribution } = useCommunity();
+  useEffect(() => {
+    migrateLegacyStorage();
+  }, []);
+
   const joinedCommunityId =
     typeof window !== "undefined"
-      ? localStorage.getItem("kad_community_joined")
+      ? localStorage.getItem(modeKey("kad_community_joined"))
       : null;
   const joinedCommunity =
     COMMUNITIES.find((c) => c.id === joinedCommunityId) ?? null;

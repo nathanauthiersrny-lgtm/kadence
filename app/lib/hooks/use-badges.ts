@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { isDemoMode } from "./use-demo-mode";
+import { modeKey } from "../storage";
 
 export type Badge = {
   id: string;
@@ -73,8 +75,14 @@ export function useBadges(): BadgesState {
   const [earned, setEarned] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+      const raw = localStorage.getItem(modeKey(STORAGE_KEY));
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+      if (isDemoMode()) {
+        const seed = ["first-run", "club-5k", "club-10k", "streak-3"];
+        localStorage.setItem(modeKey(STORAGE_KEY), JSON.stringify(seed));
+        return new Set(seed);
+      }
+      return new Set();
     } catch {
       return new Set();
     }
@@ -110,7 +118,7 @@ export function useBadges(): BadgesState {
       setEarned((prev) => {
         const next = new Set(prev);
         for (const id of candidates) next.add(id);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+        localStorage.setItem(modeKey(STORAGE_KEY), JSON.stringify([...next]));
         return next;
       });
 
@@ -135,10 +143,10 @@ export function useBadges(): BadgesState {
 // ─── total run counter ────────────────────────────────────────────────────────
 const RUNS_KEY = "kad_total_runs";
 export function incrementTotalRuns(): number {
-  const n = (parseInt(localStorage.getItem(RUNS_KEY) ?? "0", 10) || 0) + 1;
-  localStorage.setItem(RUNS_KEY, String(n));
+  const n = (parseInt(localStorage.getItem(modeKey(RUNS_KEY)) ?? "0", 10) || 0) + 1;
+  localStorage.setItem(modeKey(RUNS_KEY), String(n));
   return n;
 }
 export function getTotalRuns(): number {
-  return parseInt(localStorage.getItem(RUNS_KEY) ?? "0", 10) || 0;
+  return parseInt(localStorage.getItem(modeKey(RUNS_KEY)) ?? "0", 10) || 0;
 }

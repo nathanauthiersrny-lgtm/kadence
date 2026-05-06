@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { modeKey } from "../storage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -374,7 +375,7 @@ const KEY_CUSTOM = "kad_flash_custom";
 
 function loadJoined(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY_JOINED) ?? "[]");
+    return JSON.parse(localStorage.getItem(modeKey(KEY_JOINED)) ?? "[]");
   } catch {
     return [];
   }
@@ -382,32 +383,32 @@ function loadJoined(): string[] {
 
 function loadResults(): Record<string, RaceResult> {
   try {
-    return JSON.parse(localStorage.getItem(KEY_RESULTS) ?? "{}");
+    return JSON.parse(localStorage.getItem(modeKey(KEY_RESULTS)) ?? "{}");
   } catch {
     return {};
   }
 }
 
 function persistJoined(ids: string[]) {
-  localStorage.setItem(KEY_JOINED, JSON.stringify(ids));
+  localStorage.setItem(modeKey(KEY_JOINED), JSON.stringify(ids));
 }
 
 function loadCustomEvents(): FlashRun[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY_CUSTOM) ?? "[]");
+    return JSON.parse(localStorage.getItem(modeKey(KEY_CUSTOM)) ?? "[]");
   } catch {
     return [];
   }
 }
 
 function persistCustomEvents(events: FlashRun[]) {
-  localStorage.setItem(KEY_CUSTOM, JSON.stringify(events));
+  localStorage.setItem(modeKey(KEY_CUSTOM), JSON.stringify(events));
 }
 
 function persistResult(r: RaceResult) {
   const all = loadResults();
   all[r.eventId] = r;
-  localStorage.setItem(KEY_RESULTS, JSON.stringify(all));
+  localStorage.setItem(modeKey(KEY_RESULTS), JSON.stringify(all));
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -521,7 +522,7 @@ export function useFlashRun(): FlashRunHookState {
       delete next[eventId];
       const all = loadResults();
       delete all[eventId];
-      localStorage.setItem(KEY_RESULTS, JSON.stringify(all));
+      localStorage.setItem(modeKey(KEY_RESULTS), JSON.stringify(all));
       return next;
     });
   }, []);

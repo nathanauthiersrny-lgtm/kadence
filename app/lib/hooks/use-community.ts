@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { isDemoMode } from "./use-demo-mode";
+import { modeKey } from "../storage";
 
 // --- Types ---
 
@@ -134,7 +136,7 @@ function getMondayOfWeek(): Date {
 function getUserWeekContribution(): { km: number; runCount: number } {
   const monday = getMondayOfWeek();
   try {
-    const raw = localStorage.getItem("kadence_runs");
+    const raw = localStorage.getItem(modeKey("kadence_runs"));
     if (!raw) return { km: 0, runCount: 0 };
     const runs = JSON.parse(raw) as { date: string; distance: number }[];
     const weekRuns = runs.filter((r) => new Date(r.date) >= monday);
@@ -329,7 +331,7 @@ const KEY_WEEK = "kad_community_week";
 
 function loadWeekProgress(): WeekProgress {
   try {
-    const raw = localStorage.getItem(KEY_WEEK);
+    const raw = localStorage.getItem(modeKey(KEY_WEEK));
     if (raw) {
       const p: WeekProgress = JSON.parse(raw);
       if (p.weekKey === getWeekKey()) return p;
@@ -337,11 +339,21 @@ function loadWeekProgress(): WeekProgress {
   } catch {
     /* ignore */
   }
+  if (isDemoMode()) {
+    const seed: WeekProgress = {
+      weekKey: getWeekKey(),
+      myRunCount: 2,
+      myKm: 13.15,
+      claimed: false,
+    };
+    saveWeekProgress(seed);
+    return seed;
+  }
   return { weekKey: getWeekKey(), myRunCount: 0, myKm: 0, claimed: false };
 }
 
 function saveWeekProgress(p: WeekProgress) {
-  localStorage.setItem(KEY_WEEK, JSON.stringify(p));
+  localStorage.setItem(modeKey(KEY_WEEK), JSON.stringify(p));
 }
 
 // --- Hook ---
@@ -364,7 +376,7 @@ export type CommunityState = {
 function loadRunHistory(): RunEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(KEY_RUN_HISTORY);
+    const raw = localStorage.getItem(modeKey(KEY_RUN_HISTORY));
     if (raw) return JSON.parse(raw);
   } catch {
     /* ignore */
@@ -375,19 +387,25 @@ function loadRunHistory(): RunEntry[] {
 export function useCommunity(): CommunityState {
   const [joinedId, setJoinedId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(KEY_JOINED);
+    const stored = localStorage.getItem(modeKey(KEY_JOINED));
+    if (stored) return stored;
+    if (isDemoMode()) {
+      localStorage.setItem(modeKey(KEY_JOINED), "road-regular");
+      return "road-regular";
+    }
+    return null;
   });
   const [runHistory, setRunHistory] = useState<RunEntry[]>(loadRunHistory);
   const [weekProgress, setWeekProgress] =
     useState<WeekProgress>(loadWeekProgress);
 
   const joinCommunity = useCallback((id: string) => {
-    localStorage.setItem(KEY_JOINED, id);
+    localStorage.setItem(modeKey(KEY_JOINED), id);
     setJoinedId(id);
   }, []);
 
   const leaveCommunity = useCallback(() => {
-    localStorage.removeItem(KEY_JOINED);
+    localStorage.removeItem(modeKey(KEY_JOINED));
     setJoinedId(null);
   }, []);
 
@@ -395,7 +413,7 @@ export function useCommunity(): CommunityState {
     (distanceKm: number, paceSecPerKm: number) => {
       const entry: RunEntry = { distanceKm, paceSecPerKm, date: todayStr() };
       const next = [...runHistory, entry];
-      localStorage.setItem(KEY_RUN_HISTORY, JSON.stringify(next));
+      localStorage.setItem(modeKey(KEY_RUN_HISTORY), JSON.stringify(next));
       setRunHistory(next);
 
       setWeekProgress((prev) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { modeKey } from "../storage";
 
 export type Quest = {
   id: string;
@@ -56,7 +57,7 @@ export type QuestState = {
 
 function loadQuestProgress(): { km: number; done: boolean } {
   if (typeof window === "undefined") return { km: 0, done: false };
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(modeKey(STORAGE_KEY));
   if (!raw) return { km: 0, done: false };
   try {
     const { date, km, done } = JSON.parse(raw) as {
@@ -65,7 +66,7 @@ function loadQuestProgress(): { km: number; done: boolean } {
       done: boolean;
     };
     if (date === todayStr()) return { km, done };
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(modeKey(STORAGE_KEY));
   } catch {
     /* ignore */
   }
@@ -92,7 +93,7 @@ export function useQuests(): QuestState {
       setProgressKm(next);
       setCompleted(done);
       localStorage.setItem(
-        STORAGE_KEY,
+        modeKey(STORAGE_KEY),
         JSON.stringify({ date: todayStr(), km: next, done })
       );
     },

@@ -11,6 +11,7 @@ import { KIcon } from "./ui/primitives";
 import { generateRunCardPNG } from "../lib/run-card-png";
 import type { Badge } from "../lib/hooks/use-badges";
 import type { LatLon } from "../lib/hooks/use-run-tracker";
+import { modeKey } from "../lib/storage";
 
 function formatDuration(s: number) {
   const hh = Math.floor(s / 3600);
@@ -150,7 +151,7 @@ export function PostRunScreen({
     if (hasApplied.current) return;
     hasApplied.current = true;
     recordRun();
-    const stored = JSON.parse(localStorage.getItem("kad_streak") ?? "{}");
+    const stored = JSON.parse(localStorage.getItem(modeKey("kad_streak")) ?? "{}");
     const currentStreak: number = stored.streak ?? 0;
     completeQuest(distKm);
     addXP(xpEarned);

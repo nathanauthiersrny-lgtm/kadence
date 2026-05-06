@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LatLon } from "./use-run-tracker";
 import { isDemoMode } from "./use-demo-mode";
 import type { ChainRun } from "./use-chain-sync";
+import { modeKey } from "../storage";
 
 export type RunEntry = {
   id: string;
@@ -95,19 +96,17 @@ function migrate(entry: Record<string, unknown>): RunEntry {
 function load(): RunEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(RUNS_KEY);
+    const raw = localStorage.getItem(modeKey(RUNS_KEY));
     if (!raw) {
       if (isDemoMode()) {
         const seeds = buildSeeds();
-        localStorage.setItem(RUNS_KEY, JSON.stringify(seeds));
+        localStorage.setItem(modeKey(RUNS_KEY), JSON.stringify(seeds));
         return seeds;
       }
       return [];
     }
     const parsed = JSON.parse(raw) as Record<string, unknown>[];
-    const migrated = parsed.map(migrate);
-    if (isDemoMode()) return migrated;
-    return migrated.filter((r) => !r.id.startsWith("seed-"));
+    return parsed.map(migrate);
   } catch {
     return [];
   }
@@ -151,7 +150,7 @@ function mergeChainRuns(local: RunEntry[], chain: ChainRun[]): RunEntry[] {
   const merged = [...local, ...newRuns].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
-  localStorage.setItem(RUNS_KEY, JSON.stringify(merged));
+  localStorage.setItem(modeKey(RUNS_KEY), JSON.stringify(merged));
   return merged;
 }
 
@@ -174,7 +173,7 @@ export function useRunHistory(chainRuns?: ChainRun[]) {
     const full: RunEntry = { id, ...entry };
     setRuns((prev) => {
       const next = [full, ...prev];
-      localStorage.setItem(RUNS_KEY, JSON.stringify(next));
+      localStorage.setItem(modeKey(RUNS_KEY), JSON.stringify(next));
       return next;
     });
     return id;
@@ -185,7 +184,7 @@ export function useRunHistory(chainRuns?: ChainRun[]) {
       const next = prev.map((r) =>
         r.id === runId ? { ...r, txSignature } : r
       );
-      localStorage.setItem(RUNS_KEY, JSON.stringify(next));
+      localStorage.setItem(modeKey(RUNS_KEY), JSON.stringify(next));
       return next;
     });
   }, []);

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { isDemoMode } from "./use-demo-mode";
+import { modeKey } from "../storage";
 
 const MULTIPLIERS: [number, number][] = [
   [8, 2.0],
@@ -55,13 +57,24 @@ export type StreakState = {
 
 function loadStreakState(): { streak: number; runsThisWeek: number } {
   if (typeof window === "undefined") return { streak: 0, runsThisWeek: 0 };
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { streak: 0, runsThisWeek: 0 };
+  const raw = localStorage.getItem(modeKey(STORAGE_KEY));
+  if (!raw) {
+    if (isDemoMode()) {
+      const seed: Stored = {
+        streak: 3,
+        weekStart: getWeekStartStr(),
+        runsThisWeek: 2,
+      };
+      localStorage.setItem(modeKey(STORAGE_KEY), JSON.stringify(seed));
+      return { streak: seed.streak, runsThisWeek: seed.runsThisWeek };
+    }
+    return { streak: 0, runsThisWeek: 0 };
+  }
   try {
     const parsed = JSON.parse(raw);
     if ("lastRunDate" in parsed && !("weekStart" in parsed)) {
       localStorage.setItem(
-        STORAGE_KEY,
+        modeKey(STORAGE_KEY),
         JSON.stringify({ streak: 0, weekStart: "", runsThisWeek: 0 })
       );
       return { streak: 0, runsThisWeek: 0 };
@@ -72,7 +85,7 @@ function loadStreakState(): { streak: number; runsThisWeek: number } {
       return { streak: stored.streak, runsThisWeek: stored.runsThisWeek };
     } else if (stored.weekStart) {
       const resolved = evaluateWeekTransition(stored, currentWeek);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(resolved));
+      localStorage.setItem(modeKey(STORAGE_KEY), JSON.stringify(resolved));
       return { streak: resolved.streak, runsThisWeek: resolved.runsThisWeek };
     }
   } catch {
@@ -88,7 +101,7 @@ export function useStreak(): StreakState {
   );
 
   const recordRun = useCallback(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(modeKey(STORAGE_KEY));
     const currentWeek = getWeekStartStr();
     let current: Stored = {
       streak: 0,
@@ -114,7 +127,7 @@ export function useStreak(): StreakState {
       current = { ...resolved, runsThisWeek: 1 };
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    localStorage.setItem(modeKey(STORAGE_KEY), JSON.stringify(current));
     setStreak(current.streak);
     setRunsThisWeek(current.runsThisWeek);
   }, []);

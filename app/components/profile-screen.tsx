@@ -11,6 +11,7 @@ import { useRunHistory } from "../lib/hooks/use-run-history";
 import { ellipsify } from "../lib/explorer";
 import { useSocialFeed } from "../lib/hooks/use-social-feed";
 import { useDemoMode } from "../lib/hooks/use-demo-mode";
+import { modeKey } from "../lib/storage";
 import { KIcon } from "./ui/primitives";
 
 type Trophy = {
@@ -29,7 +30,7 @@ const TROPHIES_KEY = "kadence_trophies";
 
 function loadTrophies(): Trophy[] {
   try {
-    return JSON.parse(localStorage.getItem(TROPHIES_KEY) ?? "[]");
+    return JSON.parse(localStorage.getItem(modeKey(TROPHIES_KEY)) ?? "[]");
   } catch {
     return [];
   }
@@ -183,10 +184,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
     let loaded = loadTrophies();
     if (loaded.length === 0 && demo) {
       loaded = buildDemoTrophies();
-      localStorage.setItem(TROPHIES_KEY, JSON.stringify(loaded));
-    }
-    if (!demo) {
-      loaded = loaded.filter((t) => !t.id.startsWith("trophy-"));
+      localStorage.setItem(modeKey(TROPHIES_KEY), JSON.stringify(loaded));
     }
     return loaded;
   });
@@ -205,7 +203,7 @@ export function ProfileScreen({ onBack, onHistory }: Props) {
   const { runs, totalDistKm, totalRuns } = useRunHistory();
   const joinedCommunityId =
     typeof window !== "undefined"
-      ? localStorage.getItem("kad_community_joined")
+      ? localStorage.getItem(modeKey("kad_community_joined"))
       : null;
   const { weeklyFiresReceived } = useSocialFeed(joinedCommunityId);
 
