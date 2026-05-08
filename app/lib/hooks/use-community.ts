@@ -330,6 +330,9 @@ const KEY_JOINED = "kad_community_joined";
 const KEY_WEEK = "kad_community_week";
 
 function loadWeekProgress(): WeekProgress {
+  if (typeof window === "undefined") {
+    return { weekKey: getWeekKey(), myRunCount: 0, myKm: 0, claimed: false };
+  }
   try {
     const raw = localStorage.getItem(modeKey(KEY_WEEK));
     if (raw) {
