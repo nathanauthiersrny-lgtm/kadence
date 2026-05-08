@@ -56,7 +56,8 @@ export function HomeScreen({
   };
 
   const kadDisplay = kadBalance?.uiAmount ?? 0;
-  const initials = address ? address.slice(0, 2) : "??";
+  const initials = address ? address.slice(0, 2) : demo ? "DM" : "??";
+  const unlocked = status === "connected" || demo;
   const questProgress = Math.min((progressKm / quest.goalKm) * 100, 100);
 
   const now = useTick();
@@ -179,7 +180,7 @@ export function HomeScreen({
               </span>
             )}
           </div>
-          {status === "connected" ? (
+          {unlocked ? (
             <button
               onClick={onProfile}
               style={{
@@ -246,7 +247,7 @@ export function HomeScreen({
             }}
           >
             {multiplier > 1 ? `${multiplier}× boost active — ` : ""}
-            {status === "connected" ? (
+            {unlocked ? (
               kadLoading ? (
                 <span
                   style={{ animation: "kadPulse 1.5s ease-in-out infinite" }}
@@ -273,7 +274,7 @@ export function HomeScreen({
         }}
       >
         {/* Start CTA */}
-        {status === "connected" ? (
+        {unlocked ? (
           <button
             onClick={onStart}
             style={{
@@ -316,7 +317,7 @@ export function HomeScreen({
         )}
 
         {/* Quest progress (in-progress only) */}
-        {status === "connected" && !completed && progressKm > 0 && (
+        {unlocked && !completed && progressKm > 0 && (
           <KCard padding={14}>
             <div
               style={{

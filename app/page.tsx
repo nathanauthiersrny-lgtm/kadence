@@ -29,6 +29,7 @@ import { useChainSync } from "./lib/hooks/use-chain-sync";
 import { useSocialFeed } from "./lib/hooks/use-social-feed";
 import type { RunResult, LatLon } from "./lib/hooks/use-run-tracker";
 import { modeKey, migrateLegacyStorage } from "./lib/storage";
+import { useDemoMode } from "./lib/hooks/use-demo-mode";
 
 type Trophy = {
   id: string;
@@ -93,6 +94,7 @@ export default function Page() {
   const [runGoal, setRunGoal] = useState<RunGoal | null>(null);
 
   const { wallet, signer } = useWallet();
+  const { demo } = useDemoMode();
   const { send } = useSendTransaction();
   const { getExplorerUrl } = useCluster();
   const { multiplier } = useStreak();
@@ -253,6 +255,12 @@ export default function Page() {
   }, []);
 
   const handleClaim = useCallback(async () => {
+    if (demo) {
+      toast.info(
+        "Demo mode — triple-tap the logo to switch to real mode and claim."
+      );
+      return;
+    }
     if (!signer) {
       toast.error("Connect your wallet to claim KAD.");
       return;
@@ -319,7 +327,15 @@ export default function Page() {
     } finally {
       setIsClaiming(false);
     }
-  }, [signer, runSnapshot, send, getExplorerUrl, mutateBalance, updateRunTx]);
+  }, [
+    demo,
+    signer,
+    runSnapshot,
+    send,
+    getExplorerUrl,
+    mutateBalance,
+    updateRunTx,
+  ]);
 
   const handleBack = useCallback(() => {
     setRunSnapshot(null);
@@ -437,6 +453,7 @@ export default function Page() {
             onBack={handleBack}
             isClaiming={isClaiming}
             claimed={claimed}
+            locked={demo}
             raceResult={runSnapshot.raceResult}
             onShare={joinedCommunity ? handleShare : undefined}
             isShared={isShared}

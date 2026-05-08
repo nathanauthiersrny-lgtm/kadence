@@ -63,6 +63,7 @@ type Props = {
   onBack: () => void;
   isClaiming: boolean;
   claimed: boolean;
+  locked?: boolean;
   raceResult?: RaceResult;
   onShare?: () => void;
   isShared?: boolean;
@@ -91,6 +92,7 @@ export function PostRunScreen({
   onBack,
   isClaiming,
   claimed,
+  locked,
   raceResult,
   onShare,
   isShared,
@@ -835,20 +837,29 @@ export function PostRunScreen({
         {/* Claim CTA */}
         <button
           onClick={onClaim}
-          disabled={isClaiming || claimed}
+          disabled={isClaiming || claimed || locked}
           style={{
             height: 62,
             borderRadius: 50,
             border: "none",
-            background: claimed ? "rgba(63,185,119,0.2)" : "#E0F479",
-            color: claimed ? "#3FB977" : "#0D0D0D",
+            background: locked
+              ? "rgba(255,255,255,0.06)"
+              : claimed
+                ? "rgba(63,185,119,0.2)"
+                : "#E0F479",
+            color: locked
+              ? "rgba(255,255,255,0.55)"
+              : claimed
+                ? "#3FB977"
+                : "#0D0D0D",
             fontFamily: "inherit",
             fontWeight: 700,
             fontSize: 15,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            cursor: isClaiming || claimed ? "default" : "pointer",
-            boxShadow: claimed ? "none" : "0 0 28px rgba(224,244,121,0.35)",
+            cursor: isClaiming || claimed || locked ? "default" : "pointer",
+            boxShadow:
+              claimed || locked ? "none" : "0 0 28px rgba(224,244,121,0.35)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -856,7 +867,17 @@ export function PostRunScreen({
             opacity: isClaiming ? 0.7 : 1,
           }}
         >
-          {claimed ? (
+          {locked ? (
+            <>
+              <KIcon
+                name="lock"
+                size={14}
+                color="rgba(255,255,255,0.55)"
+                stroke={2}
+              />{" "}
+              Demo · {finalKAD.toFixed(2)} KAD
+            </>
+          ) : claimed ? (
             <>
               <KIcon name="check" size={16} color="#3FB977" /> Claimed
             </>
@@ -875,6 +896,19 @@ export function PostRunScreen({
             </>
           )}
         </button>
+        {locked && (
+          <div
+            style={{
+              marginTop: -6,
+              fontSize: 11,
+              color: "rgba(255,255,255,0.45)",
+              textAlign: "center",
+              letterSpacing: "0.04em",
+            }}
+          >
+            Demo mode — triple-tap the logo to switch to real mode and claim.
+          </div>
+        )}
 
         {onShare && !isShared && (
           <button
