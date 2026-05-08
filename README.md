@@ -2,157 +2,108 @@
 
 > Run. Earn. Compete.
 
-Kadence is a move-to-earn running app built on Solana. Every kilometre you run mints KAD tokens on-chain. Join communities, complete weekly challenges, and race runners worldwide in synchronized virtual events.
+Move-to-earn social running app built on Solana. Every kilometre mints KAD tokens on-chain. Join communities with weekly shared challenges, compete in Flash Runs with on-chain prize pools, and build your running identity — shareable, permanent, yours on-chain.
 
-Built for the [Solana Frontier Hackathon 2026](https://colosseum.org) by [@kadenceRun](https://x.com/kadenceRun)
+**Try it now: kadence-alpha.vercel.app**
 
----
+> Triple tap the Kadence logo on the home screen to activate demo mode for a richer first experience. The core on-chain loop works identically in both modes.
 
-## How It Works
-
-```
-Start run  -->  GPS tracks distance  -->  Submit to chain  -->  KAD tokens minted
-```
-
-1. **Connect** your Phantom wallet
-2. **Run** — the app tracks distance and pace via browser GPS
-3. **Claim** — after your run, submit distance + duration on-chain
-4. **Earn** — the Kadence program validates your run and mints KAD (1 KAD/km base rate)
-
-All rewards are validated on-chain: pace floor (60 sec/km), distance bounds (100m–100km), and overflow-safe arithmetic.
+Built for the Solana Frontier Hackathon 2026 · @kadenceRun
 
 ---
 
-## Features
+## The Core Loop
 
-- **GPS Run Tracker** — real-time distance, pace, and route tracking via Haversine formula
-- **KAD Token Rewards** — SPL tokens minted per run with streak multipliers
-- **Communities** — join a squad, contribute to weekly collective goals, earn bonus KAD
-- **Flash Runs** — synchronized virtual race events with prize pools
-- **Social Feed** — share runs, fire-react to friends, public profiles
-- **Trophy Cabinet** — collect achievements from races and challenges
-- **PWA** — installable on mobile, works offline for run data
+Connect wallet → Start run → GPS tracks distance → Finish → Claim → KAD minted on-chain
+
+1. **Connect** — Phantom, Solflare, or Backpack
+2. **Run** — browser GPS tracks distance and pace in real time
+3. **Claim** — submit distance and duration on-chain after your run
+4. **Earn** — Anchor program validates and mints KAD (1 KAD/km base rate)
+
+All rewards validated on-chain: pace floor (60 sec/km anti-spoofing), distance bounds (100m–100km), overflow-safe arithmetic throughout.
 
 ---
 
-## Architecture
+## What Makes It Different
 
-```
-┌─────────────────────────────────┐
-│  Next.js 16 (App Router, PWA)   │
-│  React 19 · Tailwind · SWR      │
-├─────────────────────────────────┤
-│  @solana/kit 6.3                │
-│  Wallet Standard · Phantom      │
-│  Codama-generated client        │
-├─────────────────────────────────┤
-│  Anchor Program (Rust)          │
-│  SPL Token · PDA mint authority │
-│  Program: DEZbB6Lzz...pMECK    │
-└─────────────────────────────────┘
-```
+**Communities**
+Join a squad at your level — Road Regulars, Trail Advanced. Every week your group gets a shared challenge. Your run moves the group goal forward. When the group hits the target, everyone earns bonus KAD. A beginner's 3 km counts as much as anyone's.
 
-| Layer          | Technology                              |
-| -------------- | --------------------------------------- |
-| Frontend       | Next.js 16, React 19, Tailwind CSS 4    |
-| Solana SDK     | @solana/kit 6.3, @solana/kit-client-rpc |
-| Smart Contract | Anchor 0.32 (Rust)                      |
-| Token          | SPL Token (6 decimals)                  |
-| Client codegen | Codama (from Anchor IDL)                |
-| GPS            | Browser Geolocation API                 |
-| Maps           | Leaflet + CartoDB dark tiles            |
-| Wallet         | Phantom + Wallet Standard protocol      |
-| Deploy         | Vercel                                  |
+**Flash Runs**
+A weekly schedule of open global events — no waitlist, no lottery, no expensive race number. Boost days multiply your KAD rewards just for running during the window. Race days bring real competition — leaderboards, ghost runners, on-chain prize pools split between top finishers.
+
+**Your Profile On-Chain**
+Stats, badges, trophy cabinet, every race you've entered. Permanent. Shareable. Yours.
+
+---
+
+## Roadmap
+
+**Q3 2026**
+- React Native mobile app — real background GPS, screen always on
+- Garmin / Suunto / Apple Watch sync — import sessions from running watches
+- KAD token mainnet launch with real liquidity
+
+**Q4 2026**
+- Nutrition guidance during runs — pace-aware hydration and fueling reminders
+- NFT rewards for race finishers — on-chain proof of completion, tradeable
+- Physical rewards for event organizers — branded race medals backed by on-chain validation
+
+**2027**
+- Brand partnerships — collaboration with running brands for sponsored Flash Runs
+  and exclusive rewards
+- Community-organized events — any running club can create and host their own
+  Flash Run with custom prize pools
 
 ---
 
 ## On-Chain Program
 
-**Program ID:** `DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK`
-[View on Solana Explorer (devnet)](https://explorer.solana.com/address/DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK?cluster=devnet)
+**Program ID:** DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK
 
-| Instruction             | What it does                                          |
-| ----------------------- | ----------------------------------------------------- |
-| `initialize`            | Creates the KAD SPL token mint (one-time)             |
-| `complete_run`          | Validates distance/duration/pace, mints KAD to runner |
-| `claim_challenge_bonus` | Distributes community challenge rewards               |
+View on Solana Explorer (devnet):
+https://explorer.solana.com/address/DEZbB6Lzz6nrbeZW9EtA5XNbu1SfAKcgEALfmKLpMECK?cluster=devnet
 
-**PDA Layout:**
+| Instruction | What it does |
+|---|---|
+| initialize | Creates KAD SPL token mint (one-time) |
+| complete_run | Validates run, mints KAD to runner |
+| claim_challenge_bonus | Distributes community challenge rewards |
 
-- `[b"kad-mint"]` — KAD token mint (6 decimals)
-- `[b"mint-authority"]` — signs all mint CPIs
+PDA Layout:
+- kad-mint — KAD token mint (6 decimals)
+- mint-authority — signs all mint CPIs
 
-**Validations:**
-
-- Distance: 100m – 100,000m
-- Duration: must be positive
-- Pace floor: minimum 60 sec/km (anti-spoofing)
-- Overflow-safe arithmetic (checked_mul / checked_div)
+**Tests:** 5/5 LiteSVM integration tests passing
 
 ---
 
-## Getting Started
+## Tech Stack
 
-### Prerequisites
-
-- Node.js 20+
-- Rust + Cargo
-- Solana CLI
-- Anchor CLI (0.32+)
-
-### Install
-
-```bash
-git clone https://github.com/nathanauthiersrny-lgtm/kadence
-cd kadence
-npm install
-```
-
-### Environment (optional)
-
-```bash
-cp .env.example .env.local
-# Set NEXT_PUBLIC_RPC_URL to a dedicated devnet RPC if desired
-```
-
-### Build & run the smart contract
-
-```bash
-cd anchor
-anchor build
-anchor test --skip-deploy   # runs 5 LiteSVM integration tests
-cd ..
-npm run codama:js           # regenerate TypeScript client
-```
-
-### Run the frontend
-
-```bash
-npm run dev     # http://localhost:3000
-```
-
-### Production build
-
-```bash
-npm run build   # Next.js optimized build
-npm run ci      # build + lint + format check
-```
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16, React 19, Tailwind CSS 4 |
+| Solana SDK | @solana/kit 6.3, @solana/kit-client-rpc |
+| Smart Contract | Anchor 0.32 (Rust) |
+| Token | SPL Token (6 decimals) |
+| Client codegen | Codama (from Anchor IDL) |
+| GPS | Browser Geolocation API + Haversine |
+| Maps | Leaflet + CartoDB dark tiles |
+| Wallets | Phantom, Solflare, Backpack |
+| Deploy | Vercel |
 
 ---
 
-## Tests
+## Known Limitations
 
-```bash
-# Anchor program tests (LiteSVM)
-cd anchor && anchor test --skip-deploy
-
-# 5/5 tests:
-#   test_initialize_creates_mint
-#   test_complete_run_mints_kad
-#   test_complete_run_rejects_zero_distance
-#   test_complete_run_rejects_superhuman_pace
-#   test_id
-```
+- Browser GPS — less accurate than native, no background tracking
+- Screen must stay on during runs — background GPS requires a native app.
+  A React Native rebuild with full background tracking is planned post-hackathon.
+- Devnet only — KAD has no real market value yet
+- Boost/underdog multipliers are frontend display — on-chain mints base KAD
+- Community group activity uses deterministic simulation — real users contribute
+  via actual runs
 
 ---
 
