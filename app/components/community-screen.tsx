@@ -11,6 +11,7 @@ import { useCluster } from "./cluster-context";
 import { getClaimChallengeBonusInstructionAsync } from "../generated/kadence";
 import { parseTransactionError } from "../lib/errors";
 import { modeKey } from "../lib/storage";
+import { useDemoMode } from "../lib/hooks/use-demo-mode";
 import { KCard, KButton, KIcon } from "./ui/primitives";
 import { MiniRunMap } from "./mini-run-map";
 
@@ -400,6 +401,7 @@ function DetailView({
     markClaimed,
   } = useCommunity();
   const { wallet, signer } = useWallet();
+  const { demo } = useDemoMode();
   const { send } = useSendTransaction();
   const { mutate: mutateBalance } = useKadBalance(wallet?.account.address);
   const { getExplorerUrl } = useCluster();
@@ -409,6 +411,12 @@ function DetailView({
   const [isClaiming, setIsClaiming] = useState(false);
 
   const handleClaim = useCallback(async () => {
+    if (demo) {
+      toast.info(
+        "Demo mode — triple-tap the logo to switch to real mode and claim."
+      );
+      return;
+    }
     if (!signer) {
       toast.error("Connect your wallet to claim the bonus.");
       return;
@@ -445,6 +453,7 @@ function DetailView({
       setIsClaiming(false);
     }
   }, [
+    demo,
     signer,
     joinedCommunity,
     send,
@@ -798,18 +807,61 @@ function DetailView({
               Bonus claimed! Check back next week.
             </div>
           ) : challengeComplete ? (
-            <KButton
-              style={{ width: "100%", marginTop: 14 }}
-              onClick={handleClaim}
-              disabled={isClaiming || !signer}
-            >
-              {isClaiming
-                ? "Claiming…"
-                : `Claim +${c.challenge.bonusKad} KAD bonus`}
-              {!isClaiming && (
-                <KIcon name="bolt" size={16} color="#0D0D0D" fill="#0D0D0D" />
+            <>
+              <KButton
+                style={{
+                  width: "100%",
+                  marginTop: 14,
+                  ...(demo
+                    ? {
+                        background: "rgba(255,255,255,0.06)",
+                        color: "rgba(255,255,255,0.55)",
+                        boxShadow: "none",
+                      }
+                    : {}),
+                }}
+                onClick={handleClaim}
+                disabled={isClaiming || demo || (!signer && !demo)}
+              >
+                {demo ? (
+                  <>
+                    <KIcon
+                      name="lock"
+                      size={14}
+                      color="rgba(255,255,255,0.55)"
+                      stroke={2}
+                    />{" "}
+                    Demo · +{c.challenge.bonusKad} KAD bonus
+                  </>
+                ) : isClaiming ? (
+                  "Claiming…"
+                ) : (
+                  <>
+                    Claim +{c.challenge.bonusKad} KAD bonus
+                    <KIcon
+                      name="bolt"
+                      size={16}
+                      color="#0D0D0D"
+                      fill="#0D0D0D"
+                    />
+                  </>
+                )}
+              </KButton>
+              {demo && (
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.45)",
+                    textAlign: "center",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Demo mode — triple-tap the logo to switch to real mode and
+                  claim.
+                </div>
               )}
-            </KButton>
+            </>
           ) : (
             <div
               style={{
