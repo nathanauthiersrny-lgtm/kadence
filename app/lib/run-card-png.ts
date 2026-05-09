@@ -41,7 +41,7 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob> {
 
   // ── Center watermark: KADENCE ──
   ctx.font = `700 180px ${FONT}`;
-  ctx.fillStyle = "rgba(224,244,121,0.07)";
+  ctx.fillStyle = "rgba(160,160,160,0.18)";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.letterSpacing = "20px";
@@ -65,7 +65,7 @@ export async function generateRunCardPNG(params: RunCardParams): Promise<Blob> {
 
   // ── Bottom watermark: kadencerun ──
   ctx.font = `600 36px ${FONT}`;
-  ctx.fillStyle = "rgba(224,244,121,0.25)";
+  ctx.fillStyle = "rgba(160,160,160,0.45)";
   ctx.textAlign = "center";
   ctx.letterSpacing = "4px";
   ctx.fillText("kadencerun", W / 2, H * 0.95);
