@@ -179,38 +179,13 @@ export function PostRunScreen({
       distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
     const pMin = Math.floor(paceSecPerKmVal / 60);
     const pSec = Math.round(paceSecPerKmVal % 60);
-    const hh = Math.floor(durationSeconds / 3600);
-    const mm = Math.floor((durationSeconds % 3600) / 60)
-      .toString()
-      .padStart(2, "0");
-    const ss = (durationSeconds % 60).toString().padStart(2, "0");
     return {
       distanceKm: distKm,
-      durationFormatted: hh > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`,
       paceFormatted: `${pMin}:${pSec.toString().padStart(2, "0")}`,
       kadEarned: finalKAD,
-      routeCoords: routeCoords || [],
-      txSignature: txSignature ?? null,
-      runnerName: runnerName || "Runner",
-      rarity: { stars, label: rarityLabel },
-      flashRunEventName,
-      flashRunPosition,
-      flashRunTotalRunners,
+      runStartedAt: new Date(),
     };
-  }, [
-    distKm,
-    distanceMeters,
-    durationSeconds,
-    finalKAD,
-    routeCoords,
-    txSignature,
-    runnerName,
-    stars,
-    rarityLabel,
-    flashRunEventName,
-    flashRunPosition,
-    flashRunTotalRunners,
-  ]);
+  }, [distKm, distanceMeters, durationSeconds, finalKAD]);
 
   const handleDownload = useCallback(async () => {
     setIsGenerating(true);
