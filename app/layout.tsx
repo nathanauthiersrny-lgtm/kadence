@@ -4,7 +4,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./components/providers";
-import { ServiceWorkerRegistrar } from "./components/sw-registrar";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -48,7 +47,6 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <Analytics />
         <SpeedInsights />
-        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

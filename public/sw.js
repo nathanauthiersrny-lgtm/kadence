@@ -1,58 +1,20 @@
-const CACHE_NAME = "kadence-v1";
-const SHELL_ASSETS = ["/", "/manifest.json"];
+// Kill-switch — replaces the old cache-first SW that served stale HTML
+// across deploys and 404'd Next.js chunks. Keep this file deployed for at
+// least one release cycle so previously-registered SWs receive it and
+// unregister themselves; remove after the user base has flushed.
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-        )
-      )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", (e) => {
-  const { request } = e;
-  if (request.method !== "GET") return;
-
-  const url = new URL(request.url);
-
-  // Network-first for API / RPC calls
-  if (
-    url.pathname.startsWith("/api") ||
-    url.hostname !== self.location.hostname
-  ) {
-    e.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return res;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // Cache-first for app shell / static assets
-  e.respondWith(
-    caches.match(request).then((cached) => {
-      const fetched = fetch(request).then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        return res;
-      });
-      return cached || fetched;
-    })
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+      await self.registration.unregister();
+      const clients = await self.clients.matchAll({ type: "window" });
+      clients.forEach((c) => c.navigate(c.url));
+    })()
   );
 });
