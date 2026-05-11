@@ -62,8 +62,10 @@ export function HomeScreen({
 
   const now = useTick();
   const events = getFlashRunEvents();
-  const liveEvents = events.filter((e) => getEventStatus(e) === "live");
-  const upcomingEvents = events.filter((e) => getEventStatus(e) === "upcoming");
+  const liveEvents =
+    now > 0 ? events.filter((e) => getEventStatus(e) === "live") : [];
+  const upcomingEvents =
+    now > 0 ? events.filter((e) => getEventStatus(e) === "upcoming") : [];
   const hasLive = liveEvents.length > 0;
   const nextUpcoming = upcomingEvents[0] ?? null;
   const featuredEvent = hasLive ? liveEvents[0] : nextUpcoming;
