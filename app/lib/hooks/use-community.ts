@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isDemoMode } from "./use-demo-mode";
 import { modeKey } from "../storage";
 
@@ -388,19 +388,26 @@ function loadRunHistory(): RunEntry[] {
 }
 
 export function useCommunity(): CommunityState {
-  const [joinedId, setJoinedId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(modeKey(KEY_JOINED));
-    if (stored) return stored;
-    if (isDemoMode()) {
-      localStorage.setItem(modeKey(KEY_JOINED), "road-regular");
-      return "road-regular";
-    }
-    return null;
+  const [joinedId, setJoinedId] = useState<string | null>(null);
+  const [runHistory, setRunHistory] = useState<RunEntry[]>([]);
+  const [weekProgress, setWeekProgress] = useState<WeekProgress>({
+    weekKey: "",
+    myRunCount: 0,
+    myKm: 0,
+    claimed: false,
   });
-  const [runHistory, setRunHistory] = useState<RunEntry[]>(loadRunHistory);
-  const [weekProgress, setWeekProgress] =
-    useState<WeekProgress>(loadWeekProgress);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(modeKey(KEY_JOINED));
+    if (stored) {
+      setJoinedId(stored);
+    } else if (isDemoMode()) {
+      localStorage.setItem(modeKey(KEY_JOINED), "road-regular");
+      setJoinedId("road-regular");
+    }
+    setRunHistory(loadRunHistory());
+    setWeekProgress(loadWeekProgress());
+  }, []);
 
   const joinCommunity = useCallback((id: string) => {
     localStorage.setItem(modeKey(KEY_JOINED), id);

@@ -10,7 +10,7 @@ import {
 import { useCluster } from "../../components/cluster-context";
 import { useSolanaClient } from "../solana-client-context";
 import { findMintPda } from "../../generated/kadence";
-import { isDemoMode } from "./use-demo-mode";
+import { isDemoMode, useDemoMode } from "./use-demo-mode";
 
 // Bytes of the SPL Token program address (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)
 // Used as a seed in the ATA PDA derivation.
@@ -52,7 +52,7 @@ const DEMO_BALANCE: KadBalanceResult = {
 export function useKadBalance(runnerAddress?: Address) {
   const { cluster } = useCluster();
   const client = useSolanaClient();
-  const demo = isDemoMode();
+  const { demo } = useDemoMode();
 
   return useSWR<KadBalanceResult>(
     demo

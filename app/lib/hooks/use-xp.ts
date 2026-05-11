@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isDemoMode } from "./use-demo-mode";
 import { modeKey } from "../storage";
 
@@ -42,17 +42,18 @@ export type XPState = {
 };
 
 export function useXP(): XPState {
-  const [total, setTotal] = useState(() => {
-    if (typeof window === "undefined") return 0;
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
     const stored = localStorage.getItem(modeKey(STORAGE_KEY));
-    if (stored) return parseInt(stored, 10) || 0;
-    if (isDemoMode()) {
+    if (stored) {
+      setTotal(parseInt(stored, 10) || 0);
+    } else if (isDemoMode()) {
       const seed = 267;
       localStorage.setItem(modeKey(STORAGE_KEY), String(seed));
-      return seed;
+      setTotal(seed);
     }
-    return 0;
-  });
+  }, []);
 
   const addXP = useCallback((n: number) => {
     setTotal((prev) => {

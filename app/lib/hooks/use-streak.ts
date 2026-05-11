@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isDemoMode } from "./use-demo-mode";
 import { modeKey } from "../storage";
 
@@ -95,10 +95,14 @@ function loadStreakState(): { streak: number; runsThisWeek: number } {
 }
 
 export function useStreak(): StreakState {
-  const [streak, setStreak] = useState(() => loadStreakState().streak);
-  const [runsThisWeek, setRunsThisWeek] = useState(
-    () => loadStreakState().runsThisWeek
-  );
+  const [streak, setStreak] = useState(0);
+  const [runsThisWeek, setRunsThisWeek] = useState(0);
+
+  useEffect(() => {
+    const initial = loadStreakState();
+    setStreak(initial.streak);
+    setRunsThisWeek(initial.runsThisWeek);
+  }, []);
 
   const recordRun = useCallback(() => {
     const raw = localStorage.getItem(modeKey(STORAGE_KEY));
