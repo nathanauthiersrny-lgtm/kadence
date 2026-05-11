@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useXP } from "../lib/hooks/use-xp";
 import { useStreak } from "../lib/hooks/use-streak";
 import { useQuests } from "../lib/hooks/use-quests";
@@ -8,7 +8,7 @@ import { useBadges, incrementTotalRuns } from "../lib/hooks/use-badges";
 import { type RaceResult, positionSuffix } from "../lib/hooks/use-flash-run";
 import { RacePodium } from "./flash-run-screen";
 import { KIcon } from "./ui/primitives";
-import { generateRunCardPNG } from "../lib/run-card-png";
+import { RunShareControls } from "./run-share-controls";
 import type { Badge } from "../lib/hooks/use-badges";
 import type { LatLon } from "../lib/hooks/use-run-tracker";
 import { modeKey } from "../lib/storage";
@@ -65,13 +65,8 @@ type Props = {
   claimed: boolean;
   locked?: boolean;
   raceResult?: RaceResult;
-  onShare?: () => void;
-  isShared?: boolean;
-  communityName?: string;
+  runId?: string;
   routeCoords?: LatLon[];
-  runnerName?: string;
-  profileSlug?: string;
-  txSignature?: string | null;
   flashRunEventName?: string;
   flashRunPosition?: number;
   flashRunTotalRunners?: number;
@@ -94,13 +89,8 @@ export function PostRunScreen({
   claimed,
   locked,
   raceResult,
-  onShare,
-  isShared,
-  communityName,
+  runId,
   routeCoords,
-  runnerName,
-  profileSlug,
-  txSignature,
   flashRunEventName,
   flashRunPosition,
   flashRunTotalRunners,
@@ -172,55 +162,9 @@ export function PostRunScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const buildPngParams = useCallback(() => {
-    const paceSecPerKmVal =
-      distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
-    const pMin = Math.floor(paceSecPerKmVal / 60);
-    const pSec = Math.round(paceSecPerKmVal % 60);
-    return {
-      distanceKm: distKm,
-      paceFormatted: `${pMin}:${pSec.toString().padStart(2, "0")}`,
-      kadEarned: finalKAD,
-      runStartedAt: new Date(),
-    };
-  }, [distKm, distanceMeters, durationSeconds, finalKAD]);
-
-  const handleDownload = useCallback(async () => {
-    setIsGenerating(true);
-    try {
-      const blob = await generateRunCardPNG(buildPngParams());
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `kadence-run-${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to generate run card:", err);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [buildPngParams]);
-
-  const handleTweet = useCallback(() => {
-    const paceSecPerKmVal =
-      distanceMeters > 0 ? (durationSeconds / distanceMeters) * 1000 : 0;
-    const pMin = Math.floor(paceSecPerKmVal / 60);
-    const pSec = Math.round(paceSecPerKmVal % 60);
-    const paceStr = `${pMin}:${pSec.toString().padStart(2, "0")}`;
-    const tweetText = `Just ran ${distKm.toFixed(2)}km at ${paceStr}/km and earned ${finalKAD.toFixed(2)} $KAD on @kadenceRun \u{1F525}`;
-    const parts = [`text=${encodeURIComponent(tweetText)}`];
-    if (profileSlug) {
-      const profileUrl = `${window.location.origin}/u/${profileSlug}`;
-      parts.push(`url=${encodeURIComponent(profileUrl)}`);
-    }
-    window.open(
-      `https://twitter.com/intent/tweet?${parts.join("&")}`,
-      "_blank"
-    );
-  }, [distKm, distanceMeters, durationSeconds, finalKAD, profileSlug]);
+  const [fallbackRunId] = useState(() => `run-${Date.now()}`);
+  const [runEndedAt] = useState(() => new Date());
+  const effectiveRunId = runId ?? fallbackRunId;
 
   const xpBarWidth = Math.min(xpAfter, 100);
   const didLevelUp = levelAfter > levelBefore;
@@ -885,108 +829,19 @@ export function PostRunScreen({
           </div>
         )}
 
-        {onShare && !isShared && (
-          <button
-            onClick={onShare}
-            style={{
-              height: 50,
-              borderRadius: 50,
-              border: "1px solid rgba(255,255,255,0.16)",
-              background: "transparent",
-              color: "rgba(255,255,255,0.7)",
-              fontFamily: "inherit",
-              fontWeight: 600,
-              fontSize: 13,
-              letterSpacing: "0.08em",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              width: "100%",
-            }}
-          >
-            <KIcon name="share" size={14} color="rgba(255,255,255,0.7)" /> Share
-            to {communityName}
-          </button>
-        )}
-
-        {isShared && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div
-              style={{
-                height: 44,
-                borderRadius: 50,
-                border: "1px solid rgba(63,185,119,0.3)",
-                background: "rgba(63,185,119,0.1)",
-                color: "#3FB977",
-                fontFamily: "inherit",
-                fontWeight: 600,
-                fontSize: 13,
-                letterSpacing: "0.08em",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <KIcon name="check" size={14} color="#3FB977" /> Shared to{" "}
-              {communityName}
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={handleDownload}
-                disabled={isGenerating}
-                style={{
-                  flex: 1,
-                  height: 46,
-                  borderRadius: 50,
-                  border: "1px solid rgba(255,255,255,0.16)",
-                  background: "transparent",
-                  color: "#fff",
-                  fontFamily: "inherit",
-                  fontWeight: 600,
-                  fontSize: 12,
-                  letterSpacing: "0.06em",
-                  cursor: isGenerating ? "default" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 7,
-                  opacity: isGenerating ? 0.6 : 1,
-                }}
-              >
-                <KIcon name="download" size={14} color="#fff" />
-                {isGenerating ? "Generating…" : "Run Card"}
-              </button>
-
-              <button
-                onClick={handleTweet}
-                style={{
-                  flex: 1,
-                  height: 46,
-                  borderRadius: 50,
-                  border: "1px solid rgba(255,255,255,0.16)",
-                  background: "transparent",
-                  color: "#fff",
-                  fontFamily: "inherit",
-                  fontWeight: 600,
-                  fontSize: 12,
-                  letterSpacing: "0.06em",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 7,
-                }}
-              >
-                <KIcon name="share" size={14} color="#fff" />
-                Share on X
-              </button>
-            </div>
-          </div>
-        )}
+        <RunShareControls
+          runId={effectiveRunId}
+          distanceMeters={distanceMeters}
+          durationSeconds={durationSeconds}
+          kadEarned={finalKAD}
+          runStartedAt={runEndedAt}
+          routeCoords={routeCoords ?? []}
+          txSignature={null}
+          allowSolo
+          flashRunEventName={flashRunEventName}
+          flashRunPosition={flashRunPosition}
+          flashRunTotalRunners={flashRunTotalRunners}
+        />
 
         <button
           onClick={onBack}

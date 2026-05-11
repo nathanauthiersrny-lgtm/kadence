@@ -119,7 +119,6 @@ export default function Page() {
   const { saveRun, updateRunTx } = useRunHistory(chainRuns);
   const socialFeed = useSocialFeed(joinedCommunity?.id ?? null);
   const { socialMultiplier } = socialFeed;
-  const [isShared, setIsShared] = useState(false);
 
   const handleStart = useCallback(() => {
     setClaimed(false);
@@ -341,35 +340,8 @@ export default function Page() {
     setRunSnapshot(null);
     setActiveFlashRun(null);
     setRunGoal(null);
-    setIsShared(false);
     setView("home");
   }, []);
-
-  const handleShare = useCallback(() => {
-    if (!runSnapshot || !joinedCommunity) return;
-    const profileName =
-      localStorage.getItem("kadence_profile_name") || "Runner";
-    const walletAddr = signer?.address?.toString() || "";
-    socialFeed.shareRun({
-      runId: runSnapshot.savedRunId || `run-${Date.now()}`,
-      communityId: joinedCommunity.id,
-      runnerName: profileName,
-      walletAddress: walletAddr,
-      distanceKm: runSnapshot.distanceMeters / 1000,
-      durationSeconds: runSnapshot.durationSeconds,
-      paceSecPerKm:
-        runSnapshot.distanceMeters > 0
-          ? (runSnapshot.durationSeconds / runSnapshot.distanceMeters) * 1000
-          : 0,
-      kadEarned: runSnapshot.finalKAD,
-      routeCoords: runSnapshot.routeCoords.filter((_, i) => i % 5 === 0),
-      txSignature: null,
-      flashRunEventName: runSnapshot.flashRunEvent?.name,
-      flashRunPosition: runSnapshot.raceResult?.position,
-      flashRunTotalRunners: runSnapshot.raceResult?.totalParticipants,
-    });
-    setIsShared(true);
-  }, [runSnapshot, joinedCommunity, signer, socialFeed]);
 
   const handleHistory = useCallback(() => {
     setView("history");
@@ -455,22 +427,8 @@ export default function Page() {
             claimed={claimed}
             locked={demo}
             raceResult={runSnapshot.raceResult}
-            onShare={joinedCommunity ? handleShare : undefined}
-            isShared={isShared}
-            communityName={joinedCommunity?.name}
+            runId={runSnapshot.savedRunId}
             routeCoords={runSnapshot.routeCoords}
-            runnerName={
-              typeof window !== "undefined"
-                ? localStorage.getItem("kadence_profile_name") || "Runner"
-                : "Runner"
-            }
-            profileSlug={(() => {
-              if (typeof window === "undefined") return undefined;
-              const name = localStorage.getItem("kadence_profile_name");
-              if (name) return name.toLowerCase().replace(/\s+/g, "-");
-              return signer?.address?.toString();
-            })()}
-            txSignature={null}
             flashRunEventName={runSnapshot.flashRunEvent?.name}
             flashRunPosition={runSnapshot.raceResult?.position}
             flashRunTotalRunners={runSnapshot.raceResult?.totalParticipants}

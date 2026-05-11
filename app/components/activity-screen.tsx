@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRunHistory } from "../lib/hooks/use-run-history";
 import { KIcon } from "./ui/primitives";
+import { RunShareControls } from "./run-share-controls";
 import type { RunEntry } from "../lib/hooks/use-run-history";
 
 const MiniRunMap = dynamic(
@@ -801,6 +802,18 @@ function RunDetailView({ run, onBack }: { run: RunEntry; onBack: () => void }) {
               Pending verification
             </div>
           </div>
+        )}
+
+        {run.txSignature && (
+          <RunShareControls
+            runId={run.id}
+            distanceMeters={run.distance}
+            durationSeconds={run.duration}
+            kadEarned={run.kadEarned}
+            runStartedAt={new Date(run.date)}
+            routeCoords={run.routeCoords}
+            txSignature={run.txSignature}
+          />
         )}
       </div>
     </div>
